@@ -702,7 +702,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold leading-none">{activeContact?.name ?? activeContact?.username}</p>
-                  <p className="text-xs mt-0.5 text-muted-foreground">`@${activeContact?.username}`</p>
+                  <p className="text-xs mt-0.5 text-muted-foreground">{`@${activeContact?.username}`}</p>
                 </div>
               </div>
 

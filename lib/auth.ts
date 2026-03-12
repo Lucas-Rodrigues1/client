@@ -18,7 +18,12 @@ export function getUser(): StoredUser | null {
     const raw = localStorage.getItem(USER_KEY);
     if (raw) {
       try {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        // Normalize legacy Mongoose _id → id (old sessions before auth fix)
+        if (!parsed.id && parsed._id) {
+          parsed.id = String(parsed._id);
+        }
+        return parsed as StoredUser;
       } catch {
         return null;
       }

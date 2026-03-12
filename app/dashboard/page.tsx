@@ -198,13 +198,19 @@ export default function DashboardPage() {
         }
         return prev
       })
-      setConversations((prev) =>
-        prev.map((c) =>
-          c._id === data.conversationId
-            ? { ...c, lastMessage: { _id: data._id, content: data.content, sender: data.sender.id, createdAt: data.createdAt }, updatedAt: data.createdAt }
-            : c
-        ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      )
+      if (!conversationIdsRef.current.has(data.conversationId)) {
+        // This is a brand-new conversation for this user (first message ever)
+        // Reload the full list so it appears in the sidebar
+        loadConversations()
+      } else {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c._id === data.conversationId
+              ? { ...c, lastMessage: { _id: data._id, content: data.content, sender: data.sender.id, createdAt: data.createdAt }, updatedAt: data.createdAt }
+              : c
+          ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        )
+      }
     })
 
     const offMsgAck = socketService.on<{
@@ -262,6 +268,12 @@ export default function DashboardPage() {
   // Ref to track selectedConv inside socket callbacks
   const selectedConvRef = useRef<ConversationItem | null>(null)
   useEffect(() => { selectedConvRef.current = selectedConv }, [selectedConv])
+
+  // Ref to track known conversation IDs inside socket callbacks
+  const conversationIdsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    conversationIdsRef.current = new Set(conversations.map(c => c._id))
+  }, [conversations])
 
   // --- Click-outside closers ---
 
@@ -690,20 +702,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold leading-none">{activeContact?.name ?? activeContact?.username}</p>
-                  <p className={cn("text-xs mt-0.5", isRemoteTyping ? "text-primary" : "text-muted-foreground")}>
-                    {isRemoteTyping ? (
-                      <span className="flex items-center gap-1">
-                        <span className="inline-flex gap-0.5">
-                          <span className="size-1 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-                          <span className="size-1 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
-                          <span className="size-1 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
-                        </span>
-                        digitando
-                      </span>
-                    ) : (
-                      `@${activeContact?.username}`
-                    )}
-                  </p>
+                  <p className="text-xs mt-0.5 text-muted-foreground">`@${activeContact?.username}`</p>
                 </div>
               </div>
 
@@ -733,6 +732,16 @@ export default function DashboardPage() {
                       </div>
                     )
                   })
+                )}
+                {/* Typing bubble */}
+                {isRemoteTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted/80 rounded-full px-3 py-2 flex items-center gap-[3px]">
+                      <span className="size-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
+                      <span className="size-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
+                      <span className="size-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
+                    </div>
+                  </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>

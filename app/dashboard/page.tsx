@@ -29,8 +29,6 @@ import {
   Loader2,
   ChevronLeft,
   Settings,
-  BellOff,
-  BellRing,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -49,7 +47,6 @@ interface LocalMessage {
 }
 
 interface UserSettings {
-  notifications: boolean
   readReceipts: boolean
 }
 
@@ -121,19 +118,22 @@ function StatusDot({ status, className }: { status?: UserStatus; className?: str
   )
 }
 
-// Read receipt icon: single check = sent, double check = read
+// Read receipt icon
+// pending → single gray check (enviando)
+// sent (acked) + not read → double gray check (entregue)
+// read → double blue check (lido)
 function MessageTick({ pending, failed, read, className }: { pending?: boolean; failed?: boolean; read?: boolean; className?: string }) {
   if (failed) return <X className={cn("size-3 text-destructive", className)} />
   if (pending) return <Check className={cn("size-3 opacity-40", className)} />
-  if (read) return <CheckCheck className={cn("size-3 text-primary", className)} />
-  return <Check className={cn("size-3 opacity-70", className)} />
+  if (read) return <CheckCheck className={cn("size-3 text-blue-400", className)} />
+  return <CheckCheck className={cn("size-3 opacity-40", className)} />
 }
 
 // --- Dashboard ---
 
 type SidebarTab = "chats" | "friends"
 
-const DEFAULT_SETTINGS: UserSettings = { notifications: true, readReceipts: true }
+const DEFAULT_SETTINGS: UserSettings = { readReceipts: true }
 
 function loadSettings(): UserSettings {
   if (typeof window === "undefined") return DEFAULT_SETTINGS
@@ -155,7 +155,7 @@ export default function DashboardPage() {
   const [myStatus, setMyStatus] = useState<UserStatus>("online")
 
   // Settings
-  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS)
+  const [settings, setSettings] = useState<UserSettings>(() => loadSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
 
@@ -217,7 +217,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const u = getUser()
     setUser(u)
-    setSettings(loadSettings())
   }, [])
 
   useEffect(() => {
@@ -230,8 +229,7 @@ export default function DashboardPage() {
   }, [user])
 
   // settingsRef for read receipts toggle inside socket closure
-  const settingsRef2 = useRef<UserSettings>(DEFAULT_SETTINGS)
-  useEffect(() => { settingsRef2.current = settings }, [settings])
+  // settingsRef for close-outside handler
 
   // --- Socket listeners ---
 
@@ -250,20 +248,13 @@ export default function DashboardPage() {
         if (isActive) return [...prev, msg]
         return prev
       })
+      // If recipient is currently viewing the conversation, auto-mark as read
+      if (isActive) {
+        socketService.emit("message:read", { conversationId: data.conversationId })
+      }
       // Increment unread counter if not in this conversation
       if (!isActive) {
         setUnreadCounts((prev) => ({ ...prev, [data.conversationId]: (prev[data.conversationId] ?? 0) + 1 }))
-        // Browser notification
-        if (settingsRef2.current.notifications && typeof window !== "undefined" && document.hidden) {
-          const senderName = data.sender.name ?? data.sender.username
-          if (Notification.permission === "granted") {
-            new Notification(senderName, { body: data.content, icon: "/favicon.ico" })
-          } else if (Notification.permission === "default") {
-            Notification.requestPermission().then((p) => {
-              if (p === "granted") new Notification(senderName, { body: data.content, icon: "/favicon.ico" })
-            })
-          }
-        }
       }
       if (!conversationIdsRef.current.has(data.conversationId)) {
         loadConversations()
@@ -527,9 +518,6 @@ export default function DashboardPage() {
     setSettings((prev) => {
       const next = { ...prev, [key]: !prev[key] }
       saveSettings(next)
-      if (key === "notifications" && next.notifications && typeof window !== "undefined") {
-        Notification.requestPermission()
-      }
       return next
     })
   }
@@ -899,22 +887,6 @@ export default function DashboardPage() {
                   <div className="px-3 py-2.5 border-b border-border">
                     <p className="text-sm font-semibold">Configurações</p>
                   </div>
-                  {/* Notifications toggle */}
-                  <button
-                    onClick={() => handleToggleSetting("notifications")}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    {settings.notifications
-                      ? <BellRing className="size-4 text-primary flex-none" />
-                      : <BellOff className="size-4 text-muted-foreground flex-none" />}
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium">Notificações</p>
-                      <p className="text-xs text-muted-foreground">{settings.notifications ? "Ativadas" : "Desativadas"}</p>
-                    </div>
-                    <div className={cn("w-8 h-4 rounded-full transition-colors flex-none relative", settings.notifications ? "bg-primary" : "bg-muted-foreground/30")}>
-                      <span className={cn("absolute top-0.5 size-3 rounded-full bg-white shadow transition-transform", settings.notifications ? "left-[calc(100%-14px)]" : "left-0.5")} />
-                    </div>
-                  </button>
                   {/* Read receipts toggle */}
                   <button
                     onClick={() => handleToggleSetting("readReceipts")}

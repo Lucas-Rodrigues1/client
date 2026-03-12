@@ -1,4 +1,31 @@
 const JWT_KEY = "auth_token";
+const USER_KEY = "chat_user";
+
+interface StoredUser {
+  id: string;
+  username: string;
+  name: string;
+}
+
+export function saveUser(user: StoredUser): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
+}
+
+export function getUser(): StoredUser | null {
+  if (typeof window !== "undefined") {
+    const raw = localStorage.getItem(USER_KEY);
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
 
 export function saveToken(token: string): void {
   if (typeof window !== "undefined") {
@@ -17,6 +44,7 @@ export function getToken(): string | null {
 export function removeToken(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem(JWT_KEY);
+    localStorage.removeItem(USER_KEY);
     document.cookie = `${JWT_KEY}=; path=/; max-age=0`;
   }
 }

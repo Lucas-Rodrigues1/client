@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { apiRepository } from "@/lib/api"
-import { saveToken } from "@/lib/auth"
+import { saveToken, saveUser } from "@/lib/auth"
 import { useToast } from "@/lib/use-toast"
 import { useRouter } from "next/navigation"
 
@@ -42,10 +42,11 @@ export function LoginForm({
 
     if (response.success && response.data) {
       saveToken(response.data.token)
-      addToast(`Bem-vindo, ${response.data.user.name}!`, "success", 1800)
+      saveUser(response.data.user)
+      addToast(`Bem-vindo, ${response.data.user.name}!`, "success", 1000)
       setTimeout(() => {
         router.push("/dashboard")
-      }, 1800)
+      }, 1000)
     } else if (response.statusCode === 401) {
       addToast("Usuário ou senha incorretos", "error", 4000)
     } else if (response.statusCode === 400) {

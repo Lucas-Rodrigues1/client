@@ -7,14 +7,14 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/cards/card"
+} from "@/components/ui/card"
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/fields/field"
-import { Input } from "@/components/inputs/input"
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import { apiRepository } from "@/lib/api"
 import { saveToken } from "@/lib/auth"
 import { useToast } from "@/lib/use-toast"

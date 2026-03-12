@@ -27,6 +27,7 @@ export function SignupForm({ onBackClick, ...props }: React.ComponentProps<typeo
   
   const [name, setName] = useState("")
   const [username, setUsername] = useState("")
+  const [usernameError, setUsernameError] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -40,7 +41,7 @@ export function SignupForm({ onBackClick, ...props }: React.ComponentProps<typeo
 
   const allRequirementsMet = Object.values(passwordRequirements).every(Boolean)
   const passwordsMatch = password === confirmPassword && password !== ""
-  const isFormValid = allRequirementsMet && passwordsMatch && name.trim() !== "" && username.trim() !== ""
+  const isFormValid = allRequirementsMet && passwordsMatch && name.trim() !== "" && username.trim() !== "" && usernameError === ""
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,11 +98,22 @@ export function SignupForm({ onBackClick, ...props }: React.ComponentProps<typeo
                 type="text"
                 placeholder="lucas_rodrigues"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                const val = e.target.value
+                if (/\s/.test(val)) {
+                  setUsernameError("Nome de usuário inválido — espaços não são permitidos")
+                } else {
+                  setUsernameError("")
+                  setUsername(val)
+                }
+              }}
                 required
               />
+              {usernameError && (
+                <p className="text-sm text-red-500 mt-1">{usernameError}</p>
+              )}
               <FieldDescription>
-                Seu nome de usuário deve ser único 
+                Seu nome de usuário deve ser único
               </FieldDescription>
             </Field>
             <Field>

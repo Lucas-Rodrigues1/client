@@ -76,7 +76,7 @@ export function LoginForm({
                   type="text"
                   placeholder="Example: lucasRodrigues"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
                   required
                 />
               </Field>

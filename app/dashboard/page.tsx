@@ -20,11 +20,14 @@ import {
   X,
   MoreHorizontal,
   Archive,
+  ArchiveX,
   Trash2,
+  UserMinus,
   Users,
   MessageSquare,
   Loader2,
   ChevronDown,
+  ChevronLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -154,6 +157,11 @@ export default function DashboardPage() {
   // Add friend modal
   const [addFriendOpen, setAddFriendOpen] = useState(false)
 
+  // Archived conversations
+  const [archivedConvs, setArchivedConvs] = useState<ConversationItem[]>([])
+  const [archivedLoading, setArchivedLoading] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
+
   // Context menu (archive/delete conversation)
   const [contextMenu, setContextMenu] = useState<{ convId: string; x: number; y: number } | null>(null)
   const contextRef = useRef<HTMLDivElement>(null)
@@ -175,6 +183,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return
     loadConversations()
+    loadArchivedConversations()
     loadFriendRequests()
     socketService.connect()
     return () => socketService.disconnect()
@@ -301,6 +310,13 @@ export default function DashboardPage() {
     if (res.success && res.data) setConversations(res.data)
   }
 
+  async function loadArchivedConversations() {
+    setArchivedLoading(true)
+    const res = await apiRepository.listArchivedConversations()
+    setArchivedLoading(false)
+    if (res.success && res.data) setArchivedConvs(res.data)
+  }
+
   async function loadFriendRequests() {
     const res = await apiRepository.listFriendRequests()
     if (res.success && res.data) setFriendRequests(res.data)
@@ -400,9 +416,25 @@ export default function DashboardPage() {
 
   async function handleArchive(convId: string) {
     setContextMenu(null)
+    const conv = conversations.find((c) => c._id === convId)
     await apiRepository.archiveConversation(convId)
     setConversations((prev) => prev.filter((c) => c._id !== convId))
+    if (conv) setArchivedConvs((prev) => [conv, ...prev])
     if (selectedConv?._id === convId) setSelectedConv(null)
+  }
+
+  async function handleUnarchive(convId: string) {
+    setContextMenu(null)
+    const conv = archivedConvs.find((c) => c._id === convId)
+    await apiRepository.unarchiveConversation(convId)
+    setArchivedConvs((prev) => prev.filter((c) => c._id !== convId))
+    if (conv) setConversations((prev) => [conv, ...prev].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
+    if (selectedConv?._id === convId) setSelectedConv(null)
+  }
+
+  async function handleRemoveFriend(friendshipId: string) {
+    const res = await apiRepository.removeFriend(friendshipId)
+    if (res.success) setFriends((prev) => prev.filter((f) => f._id !== friendshipId))
   }
 
   async function handleDeleteConv(convId: string) {
@@ -438,6 +470,14 @@ export default function DashboardPage() {
   // --- Filtered lists ---
 
   const filteredConvs = conversations.filter((c) => {
+    if (showArchived) return false // hide regular convs when in archived view
+    if (!search.trim()) return true
+    const other = getOtherParticipant(c, user?.id ?? "")
+    return other?.name.toLowerCase().includes(search.toLowerCase()) ||
+      other?.username.toLowerCase().includes(search.toLowerCase())
+  })
+
+  const filteredArchivedConvs = archivedConvs.filter((c) => {
     if (!search.trim()) return true
     const other = getOtherParticipant(c, user?.id ?? "")
     return other?.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -596,52 +636,130 @@ export default function DashboardPage() {
           <div className="flex-1 overflow-y-auto py-2 px-2">
             {/* Chats tab */}
             {sidebarTab === "chats" && (
-              convLoading ? (
-                <div className="flex items-center justify-center py-8"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>
-              ) : filteredConvs.length === 0 ? (
-                <p className="text-center text-xs text-muted-foreground py-8">
-                  {search ? "Nenhum resultado" : "Nenhuma conversa ainda"}
-                </p>
+              showArchived ? (
+                /* ---- Archived view ---- */
+                <>
+                  {/* Back button */}
+                  <button
+                    onClick={() => { setShowArchived(false); setSearch("") }}
+                    className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="size-4" />
+                    Voltar para conversas
+                  </button>
+                  <div className="px-3 pb-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Arquivados</p>
+                  </div>
+                  {archivedLoading ? (
+                    <div className="flex items-center justify-center py-8"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>
+                  ) : filteredArchivedConvs.length === 0 ? (
+                    <p className="text-center text-xs text-muted-foreground py-8">
+                      {search ? "Nenhum resultado" : "Nenhuma conversa arquivada"}
+                    </p>
+                  ) : (
+                    filteredArchivedConvs.map((conv) => {
+                      const other = getOtherParticipant(conv, user?.id ?? "")
+                      const isSelected = selectedConv?._id === conv._id
+                      const contactStatus = other ? (userStatuses[other._id] ?? (other as any).status ?? "offline") as UserStatus : "offline"
+                      return (
+                        <div key={conv._id} className="relative group">
+                          <button
+                            onClick={() => handleSelectConv(conv)}
+                            className={cn("w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors mb-0.5 cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
+                          >
+                            <div className="relative flex-none">
+                              <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
+                                {getInitials(other?.name ?? "")}
+                              </div>
+                              <StatusDot status={contactStatus} className="absolute bottom-0 right-0 size-2.5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-baseline gap-1">
+                                <span className="text-sm font-medium truncate">{other?.name ?? other?.username ?? "..."}</span>
+                                {conv.lastMessage?.createdAt && (
+                                  <span className="text-[10px] text-muted-foreground flex-none">{formatTime(conv.lastMessage.createdAt)}</span>
+                                )}
+                              </div>
+                              <p className="text-xs truncate text-muted-foreground">{conv.lastMessage?.content ?? ""}</p>
+                            </div>
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setContextMenu({ convId: conv._id, x: e.clientX, y: e.clientY }) }}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 size-6 flex items-center justify-center rounded hover:bg-muted-foreground/20 transition-all cursor-pointer"
+                          >
+                            <MoreHorizontal className="size-3.5 text-muted-foreground" />
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
+                </>
               ) : (
-                filteredConvs.map((conv) => {
-                  const other = getOtherParticipant(conv, user?.id ?? "")
-                  const isSelected = selectedConv?._id === conv._id
-                  const contactStatus = other ? (userStatuses[other._id] ?? (other as any).status ?? "offline") as UserStatus : "offline"
-                  const preview = remoteTyping[conv._id]
-                    ? "digitando..."
-                    : conv.lastMessage?.content ?? ""
-                  return (
-                    <div key={conv._id} className="relative group">
-                      <button
-                        onClick={() => handleSelectConv(conv)}
-                        className={cn("w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors mb-0.5 cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
-                      >
-                        <div className="relative flex-none">
-                          <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
-                            {getInitials(other?.name ?? "")}
-                          </div>
-                          <StatusDot status={contactStatus} className="absolute bottom-0 right-0 size-2.5" />
+                /* ---- Normal chats view ---- */
+                <>
+                  {/* Archived row (only when not searching or when there are archived) */}
+                  {archivedConvs.length > 0 && !search.trim() && (
+                    <button
+                      onClick={() => { setShowArchived(true); setSearch("") }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors cursor-pointer mb-0.5 group"
+                    >
+                      <div className="size-9 rounded-full bg-muted flex items-center justify-center flex-none">
+                        <Archive className="size-4 text-muted-foreground" />
+                      </div>
+                      <span className="flex-1 text-left text-sm font-medium text-foreground">Arquivados</span>
+                      <span className="min-w-[20px] h-5 rounded-full bg-muted-foreground/20 text-foreground text-[11px] font-semibold flex items-center justify-center px-1.5">
+                        {archivedConvs.length}
+                      </span>
+                    </button>
+                  )}
+                  {convLoading ? (
+                    <div className="flex items-center justify-center py-8"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>
+                  ) : filteredConvs.length === 0 ? (
+                    <p className="text-center text-xs text-muted-foreground py-8">
+                      {search ? "Nenhum resultado" : "Nenhuma conversa ainda"}
+                    </p>
+                  ) : (
+                    filteredConvs.map((conv) => {
+                      const other = getOtherParticipant(conv, user?.id ?? "")
+                      const isSelected = selectedConv?._id === conv._id
+                      const contactStatus = other ? (userStatuses[other._id] ?? (other as any).status ?? "offline") as UserStatus : "offline"
+                      const preview = remoteTyping[conv._id]
+                        ? "digitando..."
+                        : conv.lastMessage?.content ?? ""
+                      return (
+                        <div key={conv._id} className="relative group">
+                          <button
+                            onClick={() => handleSelectConv(conv)}
+                            className={cn("w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors mb-0.5 cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
+                          >
+                            <div className="relative flex-none">
+                              <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
+                                {getInitials(other?.name ?? "")}
+                              </div>
+                              <StatusDot status={contactStatus} className="absolute bottom-0 right-0 size-2.5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-baseline gap-1">
+                                <span className="text-sm font-medium truncate">{other?.name ?? other?.username ?? "..."}</span>
+                                {conv.lastMessage?.createdAt && (
+                                  <span className="text-[10px] text-muted-foreground flex-none">{formatTime(conv.lastMessage.createdAt)}</span>
+                                )}
+                              </div>
+                              <p className={cn("text-xs truncate", remoteTyping[conv._id] ? "text-primary italic" : "text-muted-foreground")}>{preview}</p>
+                            </div>
+                          </button>
+                          {/* Context menu trigger */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setContextMenu({ convId: conv._id, x: e.clientX, y: e.clientY }) }}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 size-6 flex items-center justify-center rounded hover:bg-muted-foreground/20 transition-all cursor-pointer"
+                          >
+                            <MoreHorizontal className="size-3.5 text-muted-foreground" />
+                          </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-baseline gap-1">
-                            <span className="text-sm font-medium truncate">{other?.name ?? other?.username ?? "..."}</span>
-                            {conv.lastMessage?.createdAt && (
-                              <span className="text-[10px] text-muted-foreground flex-none">{formatTime(conv.lastMessage.createdAt)}</span>
-                            )}
-                          </div>
-                          <p className={cn("text-xs truncate", remoteTyping[conv._id] ? "text-primary italic" : "text-muted-foreground")}>{preview}</p>
-                        </div>
-                      </button>
-                      {/* Context menu trigger */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setContextMenu({ convId: conv._id, x: e.clientX, y: e.clientY }) }}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 size-6 flex items-center justify-center rounded hover:bg-muted-foreground/20 transition-all cursor-pointer"
-                      >
-                        <MoreHorizontal className="size-3.5 text-muted-foreground" />
-                      </button>
-                    </div>
-                  )
-                })
+                      )
+                    })
+                  )}
+                </>
               )
             )}
 
@@ -674,6 +792,9 @@ export default function DashboardPage() {
                       </div>
                       <Button size="icon-sm" variant="ghost" title="Iniciar conversa" className="cursor-pointer flex-none" onClick={() => handleStartChat(u._id)}>
                         <MessageSquare className="size-3.5" />
+                      </Button>
+                      <Button size="icon-sm" variant="ghost" title="Remover amigo" className="cursor-pointer flex-none text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleRemoveFriend(f._id)}>
+                        <UserMinus className="size-3.5" />
                       </Button>
                     </div>
                   )
@@ -764,20 +885,30 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* --- Context menu (archive / delete) --- */}
+      {/* --- Context menu (archive / unarchive / delete) --- */}
       {contextMenu && (
         <div
           ref={contextRef}
           className="fixed z-50 w-44 rounded-xl bg-card ring-1 ring-foreground/10 shadow-xl py-1 overflow-hidden"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
-          <button
-            onClick={() => handleArchive(contextMenu.convId)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors cursor-pointer"
-          >
-            <Archive className="size-4 text-muted-foreground" />
-            Arquivar
-          </button>
+          {showArchived ? (
+            <button
+              onClick={() => handleUnarchive(contextMenu.convId)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors cursor-pointer"
+            >
+              <ArchiveX className="size-4 text-muted-foreground" />
+              Desarquivar
+            </button>
+          ) : (
+            <button
+              onClick={() => handleArchive(contextMenu.convId)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors cursor-pointer"
+            >
+              <Archive className="size-4 text-muted-foreground" />
+              Arquivar
+            </button>
+          )}
           <button
             onClick={() => handleDeleteConv(contextMenu.convId)}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"

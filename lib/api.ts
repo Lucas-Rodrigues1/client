@@ -246,9 +246,31 @@ class ApiRepository {
     }
   }
 
+  async listArchivedConversations(): Promise<ApiResponse<ConversationItem[]>> {
+    try {
+      const response = await this.authFetch("/chat/conversations/archived");
+      const result = await response.json();
+      if (!response.ok) return { success: false, statusCode: response.status };
+      return { success: true, data: result.conversations };
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : "Erro na requisição" };
+    }
+  }
+
   async archiveConversation(conversationId: string): Promise<ApiResponse<void>> {
     try {
       const response = await this.authFetch(`/chat/conversations/${conversationId}/archive`, { method: "PATCH" });
+      const result = await response.json();
+      if (!response.ok) return { success: false, statusCode: response.status };
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : "Erro na requisição" };
+    }
+  }
+
+  async unarchiveConversation(conversationId: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.authFetch(`/chat/conversations/${conversationId}/unarchive`, { method: "PATCH" });
       const result = await response.json();
       if (!response.ok) return { success: false, statusCode: response.status };
       return { success: true };

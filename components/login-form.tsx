@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -6,59 +7,108 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/cards/card"
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/fields/field"
+import { Input } from "@/components/inputs/input"
+import { apiRepository } from "@/lib/api"
+import { saveToken } from "@/lib/auth"
+import { useToast } from "@/lib/use-toast"
+import { useRouter } from "next/navigation"
 
 export function LoginForm({
   className,
+  onSignupClick,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { onSignupClick?: () => void }) {
+  const router = useRouter()
+  const { addToast } = useToast()
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    const response = await apiRepository.login({
+      username,
+      password,
+    })
+
+    if (response.success && response.data) {
+      saveToken(response.data.token)
+      addToast(`Bem-vindo, ${response.data.user.name}!`, "success", 3000)
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 3000)
+    } else if (response.statusCode === 401) {
+      addToast("Usuário ou senha incorretos", "error", 4000)
+    } else if (response.statusCode === 400) {
+      addToast(response.message || "Dados inválidos", "error", 4000)
+    } else {
+      addToast(response.message || "Erro ao fazer login", "error", 4000)
+    }
+
+    setLoading(false)
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle>Login to your account</CardTitle>
+          <CardTitle>Acesse sua conta</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Insira seu nome de usuário e senha para acessar sua conta.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form>
+          <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="userName">Nome de usuário</FieldLabel>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
+                  id="userName"
+                  type="text"
+                  placeholder="Example: lucasRodrigues"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                 />
               </Field>
               <Field>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </a>
                 </div>
-                <Input id="password" type="password" required />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  placeholder="**********" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
               </Field>
               <Field>
-                <Button type="submit">Login</Button>
-                <Button variant="outline" type="button">
-                  Login with Google
+                <Button 
+                  type="submit" 
+                  className="cursor-pointer"
+                  disabled={loading}
+                >
+                  {loading ? "Entrando..." : "Login"}
                 </Button>
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="#">Sign up</a>
+                  ou Crie uma conta <button
+                    type="button"
+                    onClick={onSignupClick}
+                    className="underline hover:text-primary cursor-pointer"
+                  >
+                    aqui
+                  </button>
                 </FieldDescription>
               </Field>
             </FieldGroup>

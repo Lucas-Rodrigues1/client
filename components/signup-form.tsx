@@ -53,10 +53,10 @@ export function SignupForm({ onBackClick, ...props }: React.ComponentProps<typeo
     })
 
     if (response.success) {
-      addToast("Conta criada com sucesso! Redirecionando para login...", "success", 3000)
+      addToast("Conta criada com sucesso! Redirecionando para login...", "success", 1800)
       setTimeout(() => {
         onBackClick?.()
-      }, 3000)
+      }, 1800)
     } else if (response.statusCode === 409) {
       addToast("Nome de usuário já existe", "error", 4000)
     } else if (response.statusCode === 400) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
 export type ToastType = "success" | "error" | "info";
@@ -12,33 +12,53 @@ export interface Toast {
   duration?: number;
 }
 
-const useToast = () => {
+interface ToastContextValue {
+  toasts: Toast[];
+  addToast: (message: string, type?: ToastType, duration?: number) => string;
+  removeToast: (id: string) => void;
+}
+
+const ToastContext = createContext<ToastContextValue | null>(null);
+
+export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = (
-    message: string,
-    type: ToastType = "info",
-    duration: number = 3000
-  ) => {
-    const id = Date.now().toString();
-    const toast: Toast = { id, message, type, duration };
-
-    setToasts((prev) => [...prev, toast]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        removeToast(id);
-      }, duration);
-    }
-
-    return id;
-  };
-
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, []);
 
-  return { toasts, addToast, removeToast };
+  const addToast = useCallback(
+    (message: string, type: ToastType = "info", duration: number = 3000) => {
+      const id = Date.now().toString();
+      const toast: Toast = { id, message, type, duration };
+
+      setToasts((prev) => [...prev, toast]);
+
+      if (duration > 0) {
+        setTimeout(() => {
+          removeToast(id);
+        }, duration);
+      }
+
+      return id;
+    },
+    [removeToast]
+  );
+
+  return (
+    <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
+      {children}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </ToastContext.Provider>
+  );
+}
+
+export const useToast = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error("useToast must be used within a ToastProvider");
+  }
+  return context;
 };
 
 interface ToastContainerProps {
@@ -46,7 +66,7 @@ interface ToastContainerProps {
   onRemove: (id: string) => void;
 }
 
-const ToastContainer = ({ toasts, onRemove }: ToastContainerProps) => {
+function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2">
       {toasts.map((toast) => (
@@ -66,7 +86,7 @@ const ToastContainer = ({ toasts, onRemove }: ToastContainerProps) => {
           <span className="text-sm font-medium">{toast.message}</span>
           <button
             onClick={() => onRemove(toast.id)}
-            className="ml-auto text-white/80 hover:text-white"
+            className="ml-auto text-white/80 hover:text-white cursor-pointer"
           >
             ✕
           </button>
@@ -74,6 +94,4 @@ const ToastContainer = ({ toasts, onRemove }: ToastContainerProps) => {
       ))}
     </div>
   );
-};
-
-export { useToast, ToastContainer };
+}

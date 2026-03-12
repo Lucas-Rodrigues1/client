@@ -42,10 +42,10 @@ export function LoginForm({
 
     if (response.success && response.data) {
       saveToken(response.data.token)
-      addToast(`Bem-vindo, ${response.data.user.name}!`, "success", 3000)
+      addToast(`Bem-vindo, ${response.data.user.name}!`, "success", 1800)
       setTimeout(() => {
         router.push("/dashboard")
-      }, 3000)
+      }, 1800)
     } else if (response.statusCode === 401) {
       addToast("Usuário ou senha incorretos", "error", 4000)
     } else if (response.statusCode === 400) {

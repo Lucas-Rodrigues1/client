@@ -1,18 +1,12 @@
 const JWT_KEY = "auth_token";
 
-/**
- * Save JWT token to localStorage
- * Note: In production, consider using HTTP-only cookies with a secure backend
- */
 export function saveToken(token: string): void {
   if (typeof window !== "undefined") {
     localStorage.setItem(JWT_KEY, token);
+    document.cookie = `${JWT_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
   }
 }
 
-/**
- * Get JWT token from localStorage
- */
 export function getToken(): string | null {
   if (typeof window !== "undefined") {
     return localStorage.getItem(JWT_KEY);
@@ -20,12 +14,10 @@ export function getToken(): string | null {
   return null;
 }
 
-/**
- * Remove JWT token from localStorage
- */
 export function removeToken(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem(JWT_KEY);
+    document.cookie = `${JWT_KEY}=; path=/; max-age=0`;
   }
 }
 

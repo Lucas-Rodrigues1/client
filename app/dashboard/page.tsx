@@ -147,8 +147,12 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col h-screen bg-muted/30 overflow-hidden">
       {/* Navbar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card">
+      <div className="flex items-center justify-end px-5 py-3 border-b border-border bg-card">
         <div className="flex items-center gap-2.5" ref={profileRef}>
+          <div>
+            <p className="text-sm font-semibold leading-none text-right">{displayName}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 text-right">@{displayUsername}</p>
+          </div>
           <div className="relative">
             <button
               onClick={() => setProfileOpen((o) => !o)}
@@ -158,7 +162,7 @@ export default function DashboardPage() {
               {getInitials(displayName)}
             </button>
             {profileOpen && (
-              <div className="absolute left-0 top-11 z-50 w-44 rounded-xl bg-card ring-1 ring-foreground/10 shadow-lg py-1 overflow-hidden">
+              <div className="absolute right-0 top-11 z-50 w-44 rounded-xl bg-card ring-1 ring-foreground/10 shadow-lg py-1 overflow-hidden">
                 <div className="px-3 py-2.5 border-b border-border">
                   <p className="text-sm font-semibold">{displayName}</p>
                   <p className="text-xs text-muted-foreground">@{displayUsername}</p>
@@ -172,10 +176,6 @@ export default function DashboardPage() {
                 </button>
               </div>
             )}
-          </div>
-          <div>
-            <p className="text-sm font-semibold leading-none">{displayName}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">@{displayUsername}</p>
           </div>
         </div>
       </div>

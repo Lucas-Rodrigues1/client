@@ -10,6 +10,7 @@ import { removeToken, getUser } from "@/lib/auth"
 import { apiRepository, ConversationItem, MessageItem, FriendRequest, FriendItem } from "@/lib/api"
 import { socketService } from "@/lib/socket"
 import { AddFriendModal } from "@/components/add-friend-modal"
+import { AvatarUploadModal } from "@/components/avatar-upload-modal"
 import {
   Search,
   UserPlus,
@@ -29,6 +30,7 @@ import {
   Loader2,
   ChevronLeft,
   Settings,
+  Camera,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -129,6 +131,27 @@ function MessageTick({ pending, failed, read, className }: { pending?: boolean; 
   return <CheckCheck className={cn("size-3 opacity-40", className)} />
 }
 
+function UserAvatar({
+  avatar,
+  name,
+  className = "size-9",
+  textClassName = "text-xs",
+  fallbackClassName = "bg-primary/15 text-primary",
+}: {
+  avatar?: string | null
+  name: string
+  className?: string
+  textClassName?: string
+  fallbackClassName?: string
+}) {
+  if (avatar) return <img src={avatar} alt={name} className={cn("rounded-full object-cover", className)} />
+  return (
+    <div className={cn("rounded-full flex items-center justify-center font-semibold", className, textClassName, fallbackClassName)}>
+      {getInitials(name)}
+    </div>
+  )
+}
+
 // --- Dashboard ---
 
 type SidebarTab = "chats" | "friends"
@@ -158,6 +181,10 @@ export default function DashboardPage() {
   const [settings, setSettings] = useState<UserSettings>(() => loadSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
+
+  // Avatar
+  const [myAvatar, setMyAvatar] = useState<string | null>(null)
+  const [avatarUploadOpen, setAvatarUploadOpen] = useState(false)
 
   // Sidebar
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("chats")
@@ -224,6 +251,9 @@ export default function DashboardPage() {
     loadConversations()
     loadArchivedConversations()
     loadFriendRequests()
+    apiRepository.getMyProfile().then((res) => {
+      if (res.success && res.data) setMyAvatar(res.data.avatar)
+    })
     socketService.connect()
     return () => socketService.disconnect()
   }, [user])
@@ -599,9 +629,7 @@ export default function DashboardPage() {
                 ) : (
                   friendRequests.map((req) => (
                     <div key={req._id} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50">
-                      <div className="size-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary flex-none">
-                        {getInitials(req.requester.name)}
-                      </div>
+                      <UserAvatar avatar={req.requester.avatar} name={req.requester.name} className="size-8 flex-none" textClassName="text-xs" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{req.requester.name}</p>
                         <p className="text-xs text-muted-foreground">@{req.requester.username}</p>
@@ -683,9 +711,7 @@ export default function DashboardPage() {
                             className={cn("w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors mb-0.5 cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
                           >
                             <div className="relative flex-none">
-                              <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
-                                {getInitials(other?.name ?? "")}
-                              </div>
+                              <UserAvatar avatar={other?.avatar} name={other?.name ?? ""} />
                               <StatusDot status={contactStatus} className="absolute bottom-0 right-0 size-2.5" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -749,9 +775,7 @@ export default function DashboardPage() {
                             className={cn("w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors mb-0.5 cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
                           >
                             <div className="relative flex-none">
-                              <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
-                                {getInitials(other?.name ?? "")}
-                              </div>
+                              <UserAvatar avatar={other?.avatar} name={other?.name ?? ""} />
                               <StatusDot status={contactStatus} className="absolute bottom-0 right-0 size-2.5" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -801,9 +825,7 @@ export default function DashboardPage() {
                   return (
                     <div key={f._id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted mb-0.5">
                       <div className="relative flex-none">
-                        <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
-                          {getInitials(u?.name ?? "")}
-                        </div>
+                        <UserAvatar avatar={u?.avatar} name={u?.name ?? ""} />
                         <StatusDot status={friendStatus} className="absolute bottom-0 right-0 size-2.5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -832,9 +854,9 @@ export default function DashboardPage() {
             <div className="relative flex-none" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen((o) => !o)}
-                className="relative size-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+                className="relative size-9 rounded-full overflow-hidden cursor-pointer hover:opacity-90 transition-opacity flex-none"
               >
-                {getInitials(displayName)}
+                <UserAvatar avatar={myAvatar} name={displayName} className="size-9" textClassName="text-sm" fallbackClassName="bg-primary text-primary-foreground" />
                 <StatusDot status={myStatus} className="absolute bottom-0 right-0 size-2.5" />
               </button>
               {/* Status popup above */}
@@ -859,7 +881,15 @@ export default function DashboardPage() {
                         {STATUS_LABELS[s]}
                         {myStatus === s && <Check className="size-3 ml-auto text-primary" />}
                       </button>
-                    ))}
+                    ))}                  </div>
+                  <div className="border-t border-border px-2 py-1.5">
+                    <button
+                      onClick={() => { setProfileOpen(false); setAvatarUploadOpen(true) }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-muted/60 transition-colors cursor-pointer"
+                    >
+                      <Camera className="size-3.5 text-muted-foreground flex-none" />
+                      Alterar foto
+                    </button>
                   </div>
                 </div>
               )}
@@ -928,9 +958,7 @@ export default function DashboardPage() {
               {/* Chat header */}
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
                 <div className="relative flex-none">
-                  <div className="size-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
-                    {getInitials(activeContact?.name ?? "")}
-                  </div>
+                  <UserAvatar avatar={activeContact?.avatar} name={activeContact?.name ?? ""} />
                   <StatusDot status={activeContactStatus} className="absolute bottom-0 right-0 size-2.5" />
                 </div>
                 <div>
@@ -1033,6 +1061,15 @@ export default function DashboardPage() {
             Excluir conversa
           </button>
         </div>
+      )}
+
+      {/* --- Avatar Upload Modal --- */}
+      {avatarUploadOpen && (
+        <AvatarUploadModal
+          currentAvatar={myAvatar}
+          onClose={() => setAvatarUploadOpen(false)}
+          onSaved={(avatar) => setMyAvatar(avatar)}
+        />
       )}
 
       {/* --- Add Friend Modal --- */}

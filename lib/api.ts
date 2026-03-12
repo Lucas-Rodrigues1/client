@@ -34,6 +34,7 @@ export interface UserResult {
   _id: string;
   username: string;
   name: string;
+  avatar?: string;
 }
 
 export interface FriendRequest {
@@ -55,6 +56,7 @@ export interface ConversationParticipant {
   username: string;
   name: string;
   status?: string;
+  avatar?: string;
 }
 
 export interface ConversationLastMessage {
@@ -284,6 +286,30 @@ class ApiRepository {
       const response = await this.authFetch(`/chat/conversations/${conversationId}`, { method: "DELETE" });
       const result = await response.json();
       if (!response.ok) return { success: false, statusCode: response.status };
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : "Erro na requisição" };
+    }
+  }
+
+  // --- Profile ---
+
+  async getMyProfile(): Promise<ApiResponse<{ _id: string; username: string; name: string; avatar: string | null }>> {
+    try {
+      const response = await this.authFetch("/users/me");
+      const result = await response.json();
+      if (!response.ok) return { success: false, statusCode: response.status };
+      return { success: true, data: result.user };
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : "Erro na requisição" };
+    }
+  }
+
+  async uploadAvatar(avatar: string | null): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.authFetch("/users/avatar", { method: "PATCH", body: JSON.stringify({ avatar }) });
+      const result = await response.json();
+      if (!response.ok) return { success: false, message: result.error, statusCode: response.status };
       return { success: true };
     } catch (error) {
       return { success: false, message: error instanceof Error ? error.message : "Erro na requisição" };

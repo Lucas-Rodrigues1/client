@@ -123,12 +123,12 @@ function StatusDot({ status, className }: { status?: UserStatus; className?: str
 // Read receipt icon
 // pending → single gray check (enviando)
 // sent (acked) + not read → double gray check (entregue)
-// read → double blue check (lido)
-function MessageTick({ pending, failed, read, className }: { pending?: boolean; failed?: boolean; read?: boolean; className?: string }) {
-  if (failed) return <X className={cn("size-3 text-destructive", className)} />
-  if (pending) return <Check className={cn("size-3 opacity-40", className)} />
-  if (read) return <CheckCheck className={cn("size-3 text-blue-400", className)} />
-  return <CheckCheck className={cn("size-3 opacity-40", className)} />
+// read + readReceipts → double colored check (lido)
+function MessageTick({ pending, failed, read, readReceipts, isOwn }: { pending?: boolean; failed?: boolean; read?: boolean; readReceipts?: boolean; isOwn?: boolean }) {
+  if (failed) return <X className="size-3 text-destructive" />
+  if (pending) return <Check className={cn("size-3", isOwn ? "opacity-40" : "text-muted-foreground/50")} />
+  if (read && readReceipts) return <CheckCheck className={cn("size-3", isOwn ? "text-sky-200" : "text-blue-400")} />
+  return <CheckCheck className={cn("size-3", isOwn ? "opacity-40" : "text-muted-foreground/50")} />
 }
 
 function UserAvatar({
@@ -1004,8 +1004,8 @@ export default function DashboardPage() {
                             <span className="text-[10px]">
                               {msg.failed ? "falhou" : formatTime(msg.createdAt)}
                             </span>
-                            {isOwn && settings.readReceipts && (
-                              <MessageTick pending={msg.pending} failed={msg.failed} read={msg.read} className={isOwn ? "text-primary-foreground/70" : ""} />
+                            {isOwn && (
+                              <MessageTick pending={msg.pending} failed={msg.failed} read={msg.read} readReceipts={settings.readReceipts} isOwn />
                             )}
                           </div>
                         </div>

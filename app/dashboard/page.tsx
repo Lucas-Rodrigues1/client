@@ -854,11 +854,11 @@ export default function DashboardPage() {
             <div className="relative flex-none" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen((o) => !o)}
-                className="relative size-9 rounded-full overflow-hidden cursor-pointer hover:opacity-90 transition-opacity flex-none"
+                className="relative size-9 rounded-full cursor-pointer hover:opacity-90 transition-opacity flex-none"
               >
                 <UserAvatar avatar={myAvatar} name={displayName} className="size-9" textClassName="text-sm" fallbackClassName="bg-primary text-primary-foreground" />
-                <StatusDot status={myStatus} className="absolute bottom-0 right-0 size-2.5" />
               </button>
+              <StatusDot status={myStatus} className="absolute bottom-0 right-0 size-2.5" />
               {/* Status popup above */}
               {profileOpen && (
                 <div className="absolute left-0 bottom-12 z-50 w-52 rounded-xl bg-card ring-1 ring-foreground/10 shadow-lg py-1 overflow-hidden">

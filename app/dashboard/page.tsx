@@ -181,6 +181,8 @@ export default function DashboardPage() {
   const [settings, setSettings] = useState<UserSettings>(() => loadSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
+  const settingsValRef = useRef<UserSettings>(settings)
+  useEffect(() => { settingsValRef.current = settings }, [settings])
 
   // Avatar
   const [myAvatar, setMyAvatar] = useState<string | null>(null)
@@ -279,7 +281,7 @@ export default function DashboardPage() {
         return prev
       })
       // If recipient is currently viewing the conversation, auto-mark as read
-      if (isActive) {
+      if (isActive && settingsValRef.current.readReceipts) {
         socketService.emit("message:read", { conversationId: data.conversationId })
       }
       // Increment unread counter if not in this conversation
@@ -423,8 +425,10 @@ export default function DashboardPage() {
     setMsgLoading(true)
     // Clear unread counter for this conversation
     setUnreadCounts((prev) => { const n = { ...prev }; delete n[conv._id]; return n })
-    // Notify server that we've read the conversation
-    socketService.emit("message:read", { conversationId: conv._id })
+    // Notify server that we've read the conversation (only if read receipts enabled)
+    if (settingsValRef.current.readReceipts) {
+      socketService.emit("message:read", { conversationId: conv._id })
+    }
     const res = await apiRepository.getMessages(conv._id)
     setMsgLoading(false)
     if (res.success && res.data) {

@@ -74,7 +74,6 @@ export function AvatarUploadModal({ currentAvatar, onClose, onSaved }: AvatarUpl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-card ring-1 ring-foreground/10 rounded-2xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-sm font-semibold">Foto de perfil</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
@@ -83,7 +82,6 @@ export function AvatarUploadModal({ currentAvatar, onClose, onSaved }: AvatarUpl
         </div>
 
         <div className="px-4 py-4 space-y-4">
-          {/* Preview circle */}
           <div className="flex justify-center">
             <div className="size-24 rounded-full overflow-hidden bg-primary/15 flex items-center justify-center ring-2 ring-border">
               {preview
@@ -93,7 +91,6 @@ export function AvatarUploadModal({ currentAvatar, onClose, onSaved }: AvatarUpl
             </div>
           </div>
 
-          {/* FileUpload */}
           <FileUpload
             accept="image/*"
             maxFiles={1}
@@ -128,7 +125,6 @@ export function AvatarUploadModal({ currentAvatar, onClose, onSaved }: AvatarUpl
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center gap-2 px-4 pb-4">
           {currentAvatar && (
             <Button

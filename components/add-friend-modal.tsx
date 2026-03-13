@@ -59,7 +59,6 @@ export function AddFriendModal({ onClose, onRequestSent }: AddFriendModalProps) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-card ring-1 ring-foreground/10 rounded-2xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 className="text-sm font-semibold">Adicionar amigo</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
@@ -67,7 +66,6 @@ export function AddFriendModal({ onClose, onRequestSent }: AddFriendModalProps) 
           </button>
         </div>
 
-        {/* Search */}
         <div className="px-4 py-3">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
@@ -82,7 +80,6 @@ export function AddFriendModal({ onClose, onRequestSent }: AddFriendModalProps) 
           {errorMsg && <p className="text-xs text-destructive mt-1.5">{errorMsg}</p>}
         </div>
 
-        {/* Results */}
         <div className="px-2 pb-3 min-h-[60px] max-h-64 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-6">

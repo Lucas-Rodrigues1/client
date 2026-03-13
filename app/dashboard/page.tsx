@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -34,8 +34,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// --- Types ---
-
 type UserStatus = "online" | "offline" | "ausente" | "ocupado"
 
 interface LocalMessage {
@@ -57,8 +55,6 @@ interface StoredUser {
   username: string
   name: string
 }
-
-// --- Helpers ---
 
 function getInitials(name: string) {
   if (!name) return "?"
@@ -120,10 +116,6 @@ function StatusDot({ status, className }: { status?: UserStatus; className?: str
   )
 }
 
-// Read receipt icon
-// pending → single gray check (enviando)
-// sent (acked) + not read → double gray check (entregue)
-// read + readReceipts → double colored check (lido)
 function MessageTick({ pending, failed, read, readReceipts, isOwn }: { pending?: boolean; failed?: boolean; read?: boolean; readReceipts?: boolean; isOwn?: boolean }) {
   if (failed) return <X className="size-3 text-destructive" />
   if (pending) return <Check className={cn("size-3", isOwn ? "opacity-40" : "text-muted-foreground/50")} />
@@ -152,8 +144,6 @@ function UserAvatar({
   )
 }
 
-// --- Dashboard ---
-
 type SidebarTab = "chats" | "friends"
 
 const DEFAULT_SETTINGS: UserSettings = { readReceipts: true }
@@ -173,75 +163,58 @@ function saveSettings(s: UserSettings) {
 export default function DashboardPage() {
   const router = useRouter()
 
-  // User
   const [user, setUser] = useState<StoredUser | null>(null)
   const [myStatus, setMyStatus] = useState<UserStatus>("online")
 
-  // Settings
   const [settings, setSettings] = useState<UserSettings>(() => loadSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
   const settingsValRef = useRef<UserSettings>(settings)
   useEffect(() => { settingsValRef.current = settings }, [settings])
 
-  // Avatar
   const [myAvatar, setMyAvatar] = useState<string | null>(null)
   const [avatarUploadOpen, setAvatarUploadOpen] = useState(false)
 
-  // Sidebar
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("chats")
   const [search, setSearch] = useState("")
 
-  // Conversations
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [convLoading, setConvLoading] = useState(true)
   const [selectedConv, setSelectedConv] = useState<ConversationItem | null>(null)
 
-  // Unread counts per conversationId
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
 
-  // Messages
   const [messages, setMessages] = useState<LocalMessage[]>([])
   const [msgLoading, setMsgLoading] = useState(false)
   const [newMessage, setNewMessage] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Typing
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [remoteTyping, setRemoteTyping] = useState<Record<string, boolean>>({})
 
-  // Friends
   const [friends, setFriends] = useState<FriendItem[]>([])
   const [friendsLoading, setFriendsLoading] = useState(false)
 
-  // Online statuses keyed by userId
   const [userStatuses, setUserStatuses] = useState<Record<string, UserStatus>>({})
 
-  // Friend requests
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([])
   const [requestsOpen, setRequestsOpen] = useState(false)
   const requestsRef = useRef<HTMLDivElement>(null)
 
-  // Add friend modal
   const [addFriendOpen, setAddFriendOpen] = useState(false)
 
-  // Archived conversations
   const [archivedConvs, setArchivedConvs] = useState<ConversationItem[]>([])
   const [archivedLoading, setArchivedLoading] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
 
-  // Context menu (archive/delete conversation)
   const [contextMenu, setContextMenu] = useState<{ convId: string; x: number; y: number } | null>(null)
   const contextRef = useRef<HTMLDivElement>(null)
 
-  // Status/profile panel open
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
   const displayName = user?.name ?? "Usuário"
   const displayUsername = user?.username ?? "username"
-
-  // --- Init ---
 
   useEffect(() => {
     const u = getUser()
@@ -260,11 +233,6 @@ export default function DashboardPage() {
     return () => socketService.disconnect()
   }, [user])
 
-  // settingsRef for read receipts toggle inside socket closure
-  // settingsRef for close-outside handler
-
-  // --- Socket listeners ---
-
   useEffect(() => {
     const offMsgNew = socketService.on<{
       _id: string; conversationId: string; sender: { id: string; username: string; name?: string }; content: string; createdAt: string
@@ -280,11 +248,9 @@ export default function DashboardPage() {
         if (isActive) return [...prev, msg]
         return prev
       })
-      // If recipient is currently viewing the conversation, auto-mark as read
       if (isActive && settingsValRef.current.readReceipts) {
         socketService.emit("message:read", { conversationId: data.conversationId })
       }
-      // Increment unread counter if not in this conversation
       if (!isActive) {
         setUnreadCounts((prev) => ({ ...prev, [data.conversationId]: (prev[data.conversationId] ?? 0) + 1 }))
       }
@@ -304,7 +270,6 @@ export default function DashboardPage() {
     const offMsgAck = socketService.on<{
       _id: string; conversationId: string; sender: { id: string; username: string }; content: string; tempId: string; createdAt: string
     }>("message:ack", (data) => {
-      // Message delivered (sent) — single check
       setMessages((prev) =>
         prev.map((m) =>
           m._id === data.tempId
@@ -321,10 +286,8 @@ export default function DashboardPage() {
       )
     })
 
-    // When recipient reads the conversation, server emits message:read
     const offMsgRead = socketService.on<{ conversationId: string }>("message:read", (data) => {
       setMessages((prev) => prev.map((m) => ({ ...m, read: true })))
-      // suppress unused warning
       void data
     })
 
@@ -361,17 +324,13 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Ref to track selectedConv inside socket callbacks
   const selectedConvRef = useRef<ConversationItem | null>(null)
   useEffect(() => { selectedConvRef.current = selectedConv }, [selectedConv])
 
-  // Ref to track known conversation IDs inside socket callbacks
   const conversationIdsRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     conversationIdsRef.current = new Set(conversations.map(c => c._id))
   }, [conversations])
-
-  // --- Click-outside closers ---
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -384,12 +343,9 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  // Auto-scroll messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
-
-  // --- Data loaders ---
 
   async function loadConversations() {
     setConvLoading(true)
@@ -427,15 +383,11 @@ export default function DashboardPage() {
     if (res.success && res.data) setFriends(res.data)
   }
 
-  // --- Conversation selection ---
-
   async function handleSelectConv(conv: ConversationItem) {
     setSelectedConv(conv)
     setMessages([])
     setMsgLoading(true)
-    // Clear unread counter for this conversation
     setUnreadCounts((prev) => { const n = { ...prev }; delete n[conv._id]; return n })
-    // Notify server that we've read the conversation (only if read receipts enabled)
     if (settingsValRef.current.readReceipts) {
       socketService.emit("message:read", { conversationId: conv._id })
     }
@@ -452,8 +404,6 @@ export default function DashboardPage() {
     }
   }
 
-  // --- Start conversation from friends tab ---
-
   async function handleStartChat(friendId: string) {
     const res = await apiRepository.startConversation(friendId)
     if (res.success && res.data) {
@@ -466,8 +416,6 @@ export default function DashboardPage() {
       handleSelectConv(conv)
     }
   }
-
-  // --- Send message ---
 
   function handleSendMessage() {
     if (!newMessage.trim() || !selectedConv || !user) return
@@ -486,8 +434,6 @@ export default function DashboardPage() {
     socketService.emit("message:send", { conversationId: selectedConv._id, content: optimistic.content, tempId })
   }
 
-  // --- Typing indicator ---
-
   function handleTyping(value: string) {
     setNewMessage(value)
     if (!selectedConv) return
@@ -502,8 +448,6 @@ export default function DashboardPage() {
     }
   }
 
-  // --- Friend requests ---
-
   async function handleAccept(friendshipId: string) {
     const res = await apiRepository.acceptFriendRequest(friendshipId)
     if (res.success) {
@@ -516,8 +460,6 @@ export default function DashboardPage() {
     const res = await apiRepository.rejectFriendRequest(friendshipId)
     if (res.success) setFriendRequests((prev) => prev.filter((r) => r._id !== friendshipId))
   }
-
-  // --- Conversation context menu ---
 
   async function handleArchive(convId: string) {
     setContextMenu(null)
@@ -549,14 +491,10 @@ export default function DashboardPage() {
     if (selectedConv?._id === convId) setSelectedConv(null)
   }
 
-  // --- Status change ---
-
   async function handleStatusChange(status: UserStatus) {
     setMyStatus(status)
     socketService.emit("status:change", { status })
   }
-
-  // --- Settings ---
 
   function handleToggleSetting(key: keyof UserSettings) {
     setSettings((prev) => {
@@ -566,8 +504,6 @@ export default function DashboardPage() {
     })
   }
 
-  // --- Logout ---
-
   function handleLogout() {
     clearAllStorage()
     removeToken()
@@ -575,13 +511,9 @@ export default function DashboardPage() {
     router.push("/login")
   }
 
-  // --- Sidebar tab load trigger ---
-
   useEffect(() => {
     if (sidebarTab === "friends" && friends.length === 0) loadFriends()
   }, [sidebarTab])
-
-  // --- Filtered lists ---
 
   const filteredConvs = conversations.filter((c) => {
     if (showArchived) return false // hide regular convs when in archived view
@@ -609,17 +541,12 @@ export default function DashboardPage() {
   const isRemoteTyping = selectedConv ? !!remoteTyping[selectedConv._id] : false
   const activeContactStatus = activeContact ? (userStatuses[activeContact._id] ?? (activeContact as any).status ?? "offline") as UserStatus : undefined
 
-  // --- Render ---
-
   return (
     <div className="flex h-screen bg-background overflow-hidden">
 
-      {/* --- Sidebar --- */}
       <Card className="w-72 flex-none flex flex-col overflow-hidden gap-0 py-0 rounded-none border-r border-b-0 border-t-0 border-l-0">
 
-        {/* Navbar inside sidebar: bell + add friend */}
         <div className="flex items-center gap-1 px-3 py-2.5 border-b border-border">
-          {/* Friend requests bell */}
           <div className="relative" ref={requestsRef}>
             <button
               onClick={() => setRequestsOpen((o) => !o)}
@@ -661,19 +588,16 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
             <Input placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" />
           </div>
 
-          {/* Add friend */}
           <Button variant="ghost" size="icon-sm" title="Adicionar amigo" className="cursor-pointer flex-none" onClick={() => setAddFriendOpen(true)}>
             <UserPlus className="size-4" />
           </Button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-border">
           <button
             onClick={() => setSidebarTab("chats")}
@@ -689,14 +613,10 @@ export default function DashboardPage() {
           </button>
         </div>
 
-          {/* List */}
           <div className="flex-1 overflow-y-auto py-2 px-2">
-            {/* Chats tab */}
             {sidebarTab === "chats" && (
               showArchived ? (
-                /* ---- Archived view ---- */
                 <>
-                  {/* Back button */}
                   <button
                     onClick={() => { setShowArchived(false); setSearch("") }}
                     className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
@@ -750,9 +670,7 @@ export default function DashboardPage() {
                   )}
                 </>
               ) : (
-                /* ---- Normal chats view ---- */
                 <>
-                  {/* Archived row (only when not searching or when there are archived) */}
                   {archivedConvs.length > 0 && !search.trim() && (
                     <button
                       onClick={() => { setShowArchived(true); setSearch("") }}
@@ -809,7 +727,6 @@ export default function DashboardPage() {
                               </div>
                             </div>
                           </button>
-                          {/* Context menu trigger */}
                           <button
                             onClick={(e) => { e.stopPropagation(); setContextMenu({ convId: conv._id, x: e.clientX, y: e.clientY }) }}
                             className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 size-6 flex items-center justify-center rounded hover:bg-muted-foreground/20 transition-all cursor-pointer"
@@ -824,7 +741,6 @@ export default function DashboardPage() {
               )
             )}
 
-            {/* Friends tab */}
             {sidebarTab === "friends" && (
               friendsLoading ? (
                 <div className="flex items-center justify-center py-8"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>
@@ -862,9 +778,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* --- Bottom status bar (Discord-style) --- */}
           <div className="border-t border-border px-3 py-2 flex items-center gap-2">
-            {/* Avatar + name */}
             <div className="relative flex-none" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen((o) => !o)}
@@ -873,7 +787,6 @@ export default function DashboardPage() {
                 <UserAvatar avatar={myAvatar} name={displayName} className="size-9" textClassName="text-sm" fallbackClassName="bg-primary text-primary-foreground" />
               </button>
               <StatusDot status={myStatus} className="absolute bottom-0 right-0 size-2.5" />
-              {/* Status popup above */}
               {profileOpen && (
                 <div className="absolute left-0 bottom-12 z-50 w-52 rounded-xl bg-card ring-1 ring-foreground/10 shadow-lg py-1 overflow-hidden">
                   <div className="px-3 py-2.5 border-b border-border">
@@ -917,7 +830,6 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Settings */}
             <div className="relative" ref={settingsRef}>
               <button
                 onClick={() => setSettingsOpen((o) => !o)}
@@ -931,7 +843,6 @@ export default function DashboardPage() {
                   <div className="px-3 py-2.5 border-b border-border">
                     <p className="text-sm font-semibold">Configurações</p>
                   </div>
-                  {/* Read receipts toggle */}
                   <button
                     onClick={() => handleToggleSetting("readReceipts")}
                     className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors cursor-pointer"
@@ -960,7 +871,6 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* --- Chat area --- */}
         <Card className="flex-1 flex flex-col overflow-hidden gap-0 py-0 rounded-none border-0">
           {!selectedConv ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -969,7 +879,6 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              {/* Chat header */}
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
                 <div className="relative flex-none">
                   <UserAvatar avatar={activeContact?.avatar} name={activeContact?.name ?? ""} />
@@ -981,7 +890,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
                 {msgLoading ? (
                   <div className="flex items-center justify-center flex-1">
@@ -1013,7 +921,6 @@ export default function DashboardPage() {
                     )
                   })
                 )}
-                {/* Typing bubble */}
                 {isRemoteTyping && (
                   <div className="flex justify-start">
                     <div className="bg-muted/80 rounded-full px-3 py-2 flex items-center gap-[3px]">
@@ -1026,7 +933,6 @@ export default function DashboardPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input */}
               <div className="px-4 py-3 border-t border-border flex items-end gap-2">
                 <Textarea
                   placeholder={`Mensagem para ${activeContact?.name ?? activeContact?.username}...`}
@@ -1043,7 +949,6 @@ export default function DashboardPage() {
           )}
         </Card>
 
-      {/* --- Context menu (archive / unarchive / delete) --- */}
       {contextMenu && (
         <div
           ref={contextRef}
@@ -1077,7 +982,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* --- Avatar Upload Modal --- */}
       {avatarUploadOpen && (
         <AvatarUploadModal
           currentAvatar={myAvatar}
@@ -1086,7 +990,6 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* --- Add Friend Modal --- */}
       {addFriendOpen && (
         <AddFriendModal
           onClose={() => setAddFriendOpen(false)}

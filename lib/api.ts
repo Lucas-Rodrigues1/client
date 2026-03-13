@@ -72,6 +72,7 @@ export interface ConversationItem {
   lastMessage?: ConversationLastMessage | null;
   archivedBy: string[];
   updatedAt: string;
+  unreadCount?: number;
 }
 
 export interface MessageItem {

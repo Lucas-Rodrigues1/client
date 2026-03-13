@@ -395,7 +395,17 @@ export default function DashboardPage() {
     setConvLoading(true)
     const res = await apiRepository.listConversations()
     setConvLoading(false)
-    if (res.success && res.data) setConversations(res.data)
+    if (res.success && res.data) {
+      setConversations(res.data)
+      setUnreadCounts(prev => {
+        const next = { ...prev }
+        res.data!.forEach(c => {
+          const serverCount = c.unreadCount ?? 0
+          next[c._id] = Math.max(prev[c._id] ?? 0, serverCount)
+        })
+        return next
+      })
+    }
   }
 
   async function loadArchivedConversations() {

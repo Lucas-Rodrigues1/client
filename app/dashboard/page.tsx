@@ -13,6 +13,16 @@ import { AddFriendModal } from "@/components/add-friend-modal"
 import { AvatarUploadModal } from "@/components/avatar-upload-modal"
 import { useToast } from "@/lib/use-toast"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Search,
   UserPlus,
   Send,
@@ -32,6 +42,8 @@ import {
   ChevronLeft,
   Settings,
   Camera,
+  ImagePlus,
+  Smile,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -41,6 +53,8 @@ interface LocalMessage {
   _id: string
   sender: { _id: string; username: string; name?: string }
   content: string
+  type?: 'text' | 'image'
+  imageUrl?: string
   createdAt: string
   pending?: boolean
   failed?: boolean
@@ -218,6 +232,12 @@ export default function DashboardPage() {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
+  const [friendToRemove, setFriendToRemove] = useState<{ friendshipId: string; name: string } | null>(null)
+
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
   const displayName = user?.name ?? "Usuário"
   const displayUsername = user?.username ?? "username"
 
@@ -239,13 +259,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const offMsgNew = socketService.on<{
-      _id: string; conversationId: string; sender: { id: string; username: string; name?: string }; content: string; createdAt: string
+      _id: string; conversationId: string; sender: { id: string; username: string; name?: string }; content: string; type?: string; imageUrl?: string; createdAt: string
     }>("message:new", (data) => {
       const isActive = selectedConvRef.current?._id === data.conversationId
       const msg: LocalMessage = {
         _id: data._id,
         sender: { _id: data.sender.id, username: data.sender.username },
         content: data.content,
+        type: (data.type as LocalMessage["type"]) ?? "text",
+        imageUrl: data.imageUrl,
         createdAt: data.createdAt,
       }
       setMessages((prev) => {
@@ -272,12 +294,12 @@ export default function DashboardPage() {
     })
 
     const offMsgAck = socketService.on<{
-      _id: string; conversationId: string; sender: { id: string; username: string }; content: string; tempId: string; createdAt: string
+      _id: string; conversationId: string; sender: { id: string; username: string }; content: string; type?: string; imageUrl?: string; tempId: string; createdAt: string
     }>("message:ack", (data) => {
       setMessages((prev) =>
         prev.map((m) =>
           m._id === data.tempId
-            ? { _id: data._id, sender: { _id: data.sender.id, username: data.sender.username }, content: data.content, createdAt: data.createdAt, read: false }
+            ? { _id: data._id, sender: { _id: data.sender.id, username: data.sender.username }, content: data.content, type: (data.type as LocalMessage["type"]) ?? "text", imageUrl: data.imageUrl, createdAt: data.createdAt, read: false }
             : m
         )
       )
@@ -359,6 +381,7 @@ export default function DashboardPage() {
       if (requestsRef.current && !requestsRef.current.contains(e.target as Node)) setRequestsOpen(false)
       if (contextRef.current && !contextRef.current.contains(e.target as Node)) setContextMenu(null)
       if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) setSettingsOpen(false)
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) setEmojiPickerOpen(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
@@ -434,6 +457,8 @@ export default function DashboardPage() {
         _id: m._id,
         sender: m.sender,
         content: m.content,
+        type: m.type ?? "text",
+        imageUrl: m.imageUrl,
         createdAt: m.createdAt,
         read: true, // historical messages are considered read
       })))
@@ -460,6 +485,7 @@ export default function DashboardPage() {
       _id: tempId,
       sender: { _id: user.id, username: user.username, name: user.name },
       content: newMessage.trim(),
+      type: "text",
       createdAt: new Date().toISOString(),
       pending: true,
     }
@@ -468,6 +494,47 @@ export default function DashboardPage() {
     clearTimeout(typingTimerRef.current)
     socketService.emit("typing:stop", { conversationId: selectedConv._id })
     socketService.emit("message:send", { conversationId: selectedConv._id, content: optimistic.content, tempId })
+  }
+
+  function handleSendImage(file: File) {
+    if (!selectedConv || !user) return
+    const maxSize = 4 * 1024 * 1024 // 4MB
+    if (file.size > maxSize) {
+      addToast("A imagem deve ter no máximo 4MB.", "error", 3000)
+      return
+    }
+    if (!file.type.startsWith("image/")) {
+      addToast("Apenas imagens são permitidas.", "error", 3000)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const base64 = reader.result as string
+      const tempId = `temp_${Date.now()}`
+      const optimistic: LocalMessage = {
+        _id: tempId,
+        sender: { _id: user.id, username: user.username, name: user.name },
+        content: "📷 Foto",
+        type: "image",
+        imageUrl: base64,
+        createdAt: new Date().toISOString(),
+        pending: true,
+      }
+      setMessages((prev) => [...prev, optimistic])
+      socketService.emit("message:send", {
+        conversationId: selectedConv._id,
+        content: "📷 Foto",
+        tempId,
+        type: "image",
+        imageUrl: base64,
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function handleInsertEmoji(emoji: string) {
+    setNewMessage((prev) => prev + emoji)
+    setEmojiPickerOpen(false)
   }
 
   function handleTyping(value: string) {
@@ -521,8 +588,14 @@ export default function DashboardPage() {
   }
 
   async function handleRemoveFriend(friendshipId: string) {
+    const friendItem = friends.find(f => f._id === friendshipId)
+    const friendUser = friendItem ? getFriendUser(friendItem, user?.id ?? "") : null
     const res = await apiRepository.removeFriend(friendshipId)
-    if (res.success) setFriends((prev) => prev.filter((f) => f._id !== friendshipId))
+    if (res.success) {
+      setFriends((prev) => prev.filter((f) => f._id !== friendshipId))
+      addToast(`${friendUser?.name ?? "Amigo"} foi removido da sua lista.`, "success", 2500)
+    }
+    setFriendToRemove(null)
   }
 
   async function handleDeleteConv(convId: string) {
@@ -830,7 +903,7 @@ export default function DashboardPage() {
                       <Button size="icon-sm" variant="ghost" title="Iniciar conversa" className="cursor-pointer flex-none" onClick={() => handleStartChat(u._id)}>
                         <MessageSquare className="size-3.5" />
                       </Button>
-                      <Button size="icon-sm" variant="ghost" title="Remover amigo" className="cursor-pointer flex-none text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleRemoveFriend(f._id)}>
+                      <Button size="icon-sm" variant="ghost" title="Remover amigo" className="cursor-pointer flex-none text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setFriendToRemove({ friendshipId: f._id, name: u?.name ?? "Amigo" })}>
                         <UserMinus className="size-3.5" />
                       </Button>
                     </div>
@@ -969,7 +1042,18 @@ export default function DashboardPage() {
                           isOwn ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm",
                           msg.failed && "opacity-50",
                         )}>
-                          <p className={msg.pending ? "opacity-60" : ""}>{msg.content}</p>
+                          {msg.type === "image" && msg.imageUrl ? (
+                            <div className={msg.pending ? "opacity-60" : ""}>
+                              <img
+                                src={msg.imageUrl}
+                                alt="Foto"
+                                className="rounded-lg max-w-full max-h-64 object-contain cursor-pointer"
+                                onClick={() => window.open(msg.imageUrl, "_blank")}
+                              />
+                            </div>
+                          ) : (
+                            <p className={msg.pending ? "opacity-60" : ""}>{msg.content}</p>
+                          )}
                           <div className={cn("flex items-center justify-end gap-1 mt-0.5", isOwn ? "text-primary-foreground/60" : "text-muted-foreground")}>
                             <span className="text-[10px]">
                               {msg.failed ? "falhou" : formatTime(msg.createdAt)}
@@ -996,6 +1080,48 @@ export default function DashboardPage() {
               </div>
 
               <div className="px-4 py-3 border-t border-border flex items-end gap-2">
+                <div className="relative" ref={emojiPickerRef}>
+                  <button
+                    onClick={() => setEmojiPickerOpen((o) => !o)}
+                    className="size-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors cursor-pointer mb-0.5"
+                    title="Emojis"
+                  >
+                    <Smile className="size-4 text-muted-foreground" />
+                  </button>
+                  {emojiPickerOpen && (
+                    <div className="absolute bottom-11 left-0 z-50 w-72 max-h-52 rounded-xl bg-card ring-1 ring-foreground/10 shadow-xl p-2 overflow-y-auto">
+                      <div className="grid grid-cols-8 gap-1">
+                        {["😀","😂","😍","🥰","😎","🤩","😢","😡","👍","👎","❤️","🔥","🎉","✨","💯","🙌","👏","🤔","😅","🥺","😱","🤗","😏","😇","🤣","💀","👀","💪","🙏","🤝","😘","🥳","😭","😤","🫡","🫶","✌️","🤞","☕","🍕","🎮","📸","🎵","⭐","💬","🫠","🤯","😴"].map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => handleInsertEmoji(emoji)}
+                            className="size-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors cursor-pointer text-lg"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleSendImage(file)
+                    e.target.value = ""
+                  }}
+                />
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  className="size-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors cursor-pointer mb-0.5"
+                  title="Enviar foto"
+                >
+                  <ImagePlus className="size-4 text-muted-foreground" />
+                </button>
                 <Textarea
                   placeholder={`Mensagem para ${activeContact?.name ?? activeContact?.username}...`}
                   value={newMessage}
@@ -1058,6 +1184,23 @@ export default function DashboardPage() {
           onRequestSent={() => setAddFriendOpen(false)}
         />
       )}
+
+      <AlertDialog open={!!friendToRemove} onOpenChange={(open) => { if (!open) setFriendToRemove(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover amigo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover <strong>{friendToRemove?.name}</strong> da sua lista de amigos?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => friendToRemove && handleRemoveFriend(friendToRemove.friendshipId)}>
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

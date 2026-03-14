@@ -80,6 +80,8 @@ export interface MessageItem {
   conversation: string;
   sender: { _id: string; username: string; name: string };
   content: string;
+  type?: 'text' | 'image';
+  imageUrl?: string;
   createdAt: string;
 }
 

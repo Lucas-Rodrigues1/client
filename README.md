@@ -1,36 +1,167 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💬 Chat App — Client (Frontend)
 
-## Getting Started
+Frontend do chat em tempo real construído com **Next.js 16**, **React 19**, **TypeScript**, **Tailwind CSS 4** e **shadcn/ui**.
 
-First, run the development server:
+---
+
+## 📸 Stack
+
+| Tecnologia         | Versão  |
+| ------------------ | ------- |
+| Next.js            | 16      |
+| React              | 19      |
+| TypeScript         | 5       |
+| Tailwind CSS       | 4       |
+| shadcn/ui          | radix-nova |
+| Socket.IO Client   | 4.8     |
+| Lucide React       | 0.577   |
+
+---
+
+## ✨ Features
+
+- **Autenticação** — Login/cadastro com JWT em cookie, indicador de força de senha
+- **Chat em tempo real** — Mensagens instantâneas via Socket.IO
+- **Envio de fotos** — Upload de imagem (base64, até 4MB) com preview inline
+- **Emoji picker** — 48 emojis integrados na barra de mensagem (estilo WhatsApp)
+- **Confirmação de leitura** — Ticks ✓✓ com toggle nas configurações
+- **Indicador de digitação** — Animação de 3 bolinhas em tempo real
+- **Sistema de amizades** — Busca, solicitação, aceitação, remoção com AlertDialog
+- **Notificações** — Bell icon com badge para solicitações e aceitações
+- **Gestão de conversas** — Arquivar, desarquivar, excluir (soft delete)
+- **Perfil & status** — Upload de avatar, status (Online/Ausente/Ocupado/Offline)
+- **Toast notifications** — Feedback visual de sucesso, erro e info
+- **Proteção de rotas** — Middleware Next.js redireciona para login se não autenticado
+
+---
+
+## 🧩 Componentes shadcn/ui
+
+| Componente     | Uso                                             |
+| -------------- | ----------------------------------------------- |
+| `AlertDialog`  | Confirmação ao remover amigo                    |
+| `Button`       | Ações (enviar, adicionar amigo, logout, etc.)   |
+| `Card`         | Container da sidebar e área de mensagens        |
+| `Input`        | Campo de busca, formulários                     |
+| `Textarea`     | Campo de digitação de mensagem                  |
+| `Label`        | Labels dos formulários                          |
+| `Separator`    | Divisores visuais                               |
+| `Field`        | Wrapper de campos com validação                 |
+| `FileUpload`   | Upload de avatar com drag & drop e preview      |
+
+Adicionar novos componentes:
+
+```bash
+npx shadcn@latest add <componente>
+```
+
+---
+
+## 📁 Estrutura
+
+```
+client/
+├── app/
+│   ├── layout.tsx             # Layout raiz com ToastProvider
+│   ├── page.tsx               # Redirect → /login
+│   ├── globals.css            # Tailwind + variáveis CSS shadcn
+│   ├── login/                 # Página de login
+│   ├── signup/                # Página de cadastro
+│   └── dashboard/             # Chat principal
+├── components/
+│   ├── login-form.tsx
+│   ├── signup-form.tsx
+│   ├── add-friend-modal.tsx
+│   ├── avatar-upload-modal.tsx
+│   ├── password-strength-checker.tsx
+│   └── ui/                    # Componentes shadcn/ui
+├── hooks/                     # Custom hooks
+├── lib/
+│   ├── api.ts                 # ApiRepository (fetch + JWT)
+│   ├── auth.ts                # Token/cookie management
+│   ├── socket.ts              # SocketService (Socket.IO)
+│   ├── use-toast.tsx          # Sistema de toasts
+│   └── utils.ts               # cn() helper
+├── middleware.ts              # Auth guard (JWT cookie)
+├── components.json            # Config shadcn/ui
+├── Dockerfile
+├── docker-compose.yml
+└── package.json
+```
+
+---
+
+## 🚀 Como Rodar
+
+### Pré-requisitos
+
+- **Node.js** 20+
+- **npm** 9+
+
+### 1. Instalar dependências
+
+```bash
+npm install
+```
+
+### 2. Configurar variáveis de ambiente
+
+Crie `.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=https://server-6kij.onrender.com
+```
+
+> Para usar um server local, troque para `http://localhost:3000`.
+
+### 3. Rodar em modo dev
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🐳 Docker
 
-## Learn More
+### Docker Compose
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+docker-compose up --build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+O client estará em `http://localhost:3001`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Docker manual
 
-## Deploy on Vercel
+```bash
+docker build -t chat-client .
+docker run -p 3001:3000 -e NEXT_PUBLIC_API_URL=https://server-6kij.onrender.com chat-client
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Parar
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker-compose down
+```
+
+---
+
+## 🔧 Scripts
+
+| Comando         | Descrição                      |
+| --------------- | ------------------------------ |
+| `npm run dev`   | Modo desenvolvimento           |
+| `npm run build` | Build de produção              |
+| `npm run start` | Servidor de produção           |
+| `npm run lint`  | ESLint                         |
+
+---
+
+## 📝 Variáveis de Ambiente
+
+| Variável               | Obrigatória | Descrição                                       |
+| ---------------------- | ----------- | ----------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`  | ❌          | URL do server (padrão: `http://localhost:3000`)  |

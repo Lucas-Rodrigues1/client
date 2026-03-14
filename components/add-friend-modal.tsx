@@ -95,9 +95,13 @@ export function AddFriendModal({ onClose, onRequestSent }: AddFriendModalProps) 
                   key={user._id}
                   className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted transition-colors"
                 >
-                  <div className="size-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary flex-none">
-                    {getInitials(user.name)}
-                  </div>
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="size-8 rounded-full object-cover flex-none" />
+                  ) : (
+                    <div className="size-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary flex-none">
+                      {getInitials(user.name)}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{user.name}</p>
                     <p className="text-xs text-muted-foreground">@{user.username}</p>

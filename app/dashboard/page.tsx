@@ -1079,59 +1079,73 @@ export default function DashboardPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="px-4 py-3 border-t border-border flex items-end gap-2">
-                <div className="relative" ref={emojiPickerRef}>
-                  <button
-                    onClick={() => setEmojiPickerOpen((o) => !o)}
-                    className="size-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors cursor-pointer mb-0.5"
-                    title="Emojis"
-                  >
-                    <Smile className="size-4 text-muted-foreground" />
-                  </button>
-                  {emojiPickerOpen && (
-                    <div className="absolute bottom-11 left-0 z-50 w-72 max-h-52 rounded-xl bg-card ring-1 ring-foreground/10 shadow-xl p-2 overflow-y-auto">
-                      <div className="grid grid-cols-8 gap-1">
-                        {["😀","😂","😍","🥰","😎","🤩","😢","😡","👍","👎","❤️","🔥","🎉","✨","💯","🙌","👏","🤔","😅","🥺","😱","🤗","😏","😇","🤣","💀","👀","💪","🙏","🤝","😘","🥳","😭","😤","🫡","🫶","✌️","🤞","☕","🍕","🎮","📸","🎵","⭐","💬","🫠","🤯","😴"].map((emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={() => handleInsertEmoji(emoji)}
-                            className="size-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors cursor-pointer text-lg"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
+              <div className="px-4 py-3 border-t border-border">
+                <div className="relative flex items-end rounded-2xl bg-muted/50 ring-1 ring-border focus-within:ring-primary/40 transition-colors">
+                  <div className="relative flex-none" ref={emojiPickerRef}>
+                    <button
+                      onClick={() => setEmojiPickerOpen((o) => !o)}
+                      className="size-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors cursor-pointer ml-1 mb-0.5"
+                      title="Emojis"
+                    >
+                      <Smile className={cn("size-5 transition-colors", emojiPickerOpen ? "text-primary" : "text-muted-foreground")} />
+                    </button>
+                    {emojiPickerOpen && (
+                      <div className="absolute bottom-12 left-0 z-50 w-72 max-h-52 rounded-xl bg-card ring-1 ring-foreground/10 shadow-xl p-2 overflow-y-auto">
+                        <div className="grid grid-cols-8 gap-1">
+                          {["😀","😂","😍","🥰","😎","🤩","😢","😡","👍","👎","❤️","🔥","🎉","✨","💯","🙌","👏","🤔","😅","🥺","😱","🤗","😏","😇","🤣","💀","👀","💪","🙏","🤝","😘","🥳","😭","😤","🫡","🫶","✌️","🤞","☕","🍕","🎮","📸","🎵","⭐","💬","🫠","🤯","😴"].map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => handleInsertEmoji(emoji)}
+                              className="size-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors cursor-pointer text-lg"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleSendImage(file)
+                      e.target.value = ""
+                    }}
+                  />
+                  <Textarea
+                    placeholder={`Mensagem...`}
+                    value={newMessage}
+                    onChange={(e) => handleTyping(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
+                    className="resize-none flex-1 max-h-32 border-0 bg-transparent shadow-none focus-visible:ring-0 py-2.5 px-2 text-sm placeholder:text-muted-foreground/60"
+                  />
+                  <div className="flex items-center gap-0.5 flex-none mr-1 mb-0.5">
+                    <button
+                      onClick={() => imageInputRef.current?.click()}
+                      className="size-9 flex items-center justify-center rounded-full hover:bg-muted transition-colors cursor-pointer"
+                      title="Enviar foto"
+                    >
+                      <ImagePlus className="size-[18px] text-muted-foreground" />
+                    </button>
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!newMessage.trim()}
+                      className={cn(
+                        "size-9 flex items-center justify-center rounded-full transition-all cursor-pointer",
+                        newMessage.trim()
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-100"
+                          : "text-muted-foreground/40 scale-95 cursor-default"
+                      )}
+                      title="Enviar"
+                    >
+                      <Send className="size-[18px]" />
+                    </button>
+                  </div>
                 </div>
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleSendImage(file)
-                    e.target.value = ""
-                  }}
-                />
-                <button
-                  onClick={() => imageInputRef.current?.click()}
-                  className="size-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors cursor-pointer mb-0.5"
-                  title="Enviar foto"
-                >
-                  <ImagePlus className="size-4 text-muted-foreground" />
-                </button>
-                <Textarea
-                  placeholder={`Mensagem para ${activeContact?.name ?? activeContact?.username}...`}
-                  value={newMessage}
-                  onChange={(e) => handleTyping(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
-                  className="resize-none flex-1 max-h-32"
-                />
-                <Button onClick={handleSendMessage} disabled={!newMessage.trim()} size="icon" className="cursor-pointer flex-none mb-0.5">
-                  <Send className="size-4" />
-                </Button>
               </div>
             </>
           )}

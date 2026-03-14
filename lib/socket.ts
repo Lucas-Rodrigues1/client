@@ -19,15 +19,15 @@ class SocketService {
     })
 
     this.socket.on("connect", () => {
-      console.log("[Socket] Connected:", this.socket?.id)
+      console.log("[Socket] Connected:")
     })
 
     this.socket.on("disconnect", (reason) => {
-      console.log("[Socket] Disconnected:", reason)
+      console.log("[Socket] Disconnected:")
     })
 
     this.socket.on("connect_error", (err) => {
-      console.error("[Socket] Connection error:", err.message)
+      console.error("[Socket] Connection error:")
     })
 
     this.socket.on("trigger-event", ({ event, data }: { event: string; data: unknown }) => {

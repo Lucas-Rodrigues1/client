@@ -112,7 +112,7 @@ Crie `.env.local`:
 NEXT_PUBLIC_API_URL=https://server-6kij.onrender.com
 ```
 
-> Para usar um server local, troque para `http://localhost:3000`.
+> Para usar um server local, troque para `http://localhost:3000` (ou a porta onde o backend estiver rodando).
 
 ### 3. Rodar em modo dev
 
@@ -121,6 +121,11 @@ npm run dev
 ```
 
 Acesse `http://localhost:3000`.
+
+> **Nota:** Se o backend também estiver rodando na porta 3000 localmente, inicie o client em outra porta:
+> ```bash
+> npm run dev -- -p 3002
+> ```
 
 ---
 
@@ -137,9 +142,11 @@ O client estará em `http://localhost:3001`.
 ### Docker manual
 
 ```bash
-docker build -t chat-client .
-docker run -p 3001:3000 -e NEXT_PUBLIC_API_URL=https://server-6kij.onrender.com chat-client
+docker build --build-arg NEXT_PUBLIC_API_URL=https://server-6kij.onrender.com -t chat-client .
+docker run -p 3001:3000 chat-client
 ```
+
+> **Importante:** `NEXT_PUBLIC_*` é inlined no build do Next.js. Não é possível alterá-la via `-e` no `docker run`. Use `--build-arg` no `docker build`.
 
 ### Parar
 
@@ -162,6 +169,6 @@ docker-compose down
 
 ## 📝 Variáveis de Ambiente
 
-| Variável               | Obrigatória | Descrição                                       |
-| ---------------------- | ----------- | ----------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`  | ❌          | URL do server (padrão: `http://localhost:3000`)  |
+| Variável               | Obrigatória | Descrição                                                              |
+| ---------------------- | ----------- | ---------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`  | ❌          | URL do server. Padrão local: `http://localhost:3000`. No Docker Compose o default é `https://server-6kij.onrender.com` (via build arg). |

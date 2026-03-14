@@ -5,5 +5,5 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://server-6kij.onrender.com}
     ports:
-      - "3001:3001"
+      - "3001:3000"
     restart: unless-stopped

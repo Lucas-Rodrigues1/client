@@ -11,6 +11,7 @@ import { apiRepository, ConversationItem, MessageItem, FriendRequest, FriendItem
 import { socketService } from "@/lib/socket"
 import { AddFriendModal } from "@/components/add-friend-modal"
 import { AvatarUploadModal } from "@/components/avatar-upload-modal"
+import { useToast } from "@/lib/use-toast"
 import {
   Search,
   UserPlus,
@@ -162,6 +163,7 @@ function saveSettings(s: UserSettings) {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { addToast } = useToast()
 
   const [user, setUser] = useState<StoredUser | null>(null)
   const [myStatus, setMyStatus] = useState<UserStatus>("online")
@@ -203,7 +205,7 @@ export default function DashboardPage() {
 
   const [addFriendOpen, setAddFriendOpen] = useState(false)
 
-  const [acceptedNotifications, setAcceptedNotifications] = useState<{ friendshipId: string; user: UserResult }[]>([])
+  const [acceptedNotifications, setAcceptedNotifications] = useState<{ friendshipId: string; user: UserResult; iAccepted: boolean }[]>([])
   const [unreadFriendsCount, setUnreadFriendsCount] = useState(0)
 
   const [archivedConvs, setArchivedConvs] = useState<ConversationItem[]>([])
@@ -309,16 +311,23 @@ export default function DashboardPage() {
       loadFriendRequests()
     })
 
-    const offFriendAcc = socketService.on<{ friendshipId: string }>("friend:accepted", async (data) => {
+    const offFriendAcc = socketService.on<{ friendshipId: string; acceptedBy: string }>("friend:accepted", async (data) => {
       const res = await apiRepository.listFriends()
       if (res.success && res.data) {
         setFriends(res.data)
         const accepted = res.data.find(f => f._id === data.friendshipId)
         if (accepted) {
           const myId = getUser()?.id ?? ""
+          const iAccepted = data.acceptedBy === myId
           const friendUser = accepted.requester._id === myId ? accepted.recipient : accepted.requester
-          setAcceptedNotifications(prev => [...prev, { friendshipId: data.friendshipId, user: friendUser }])
-          setUnreadFriendsCount(prev => prev + 1)
+          if (iAccepted) {
+            // I accepted → only show badge on friends tab, no bell notification
+            setUnreadFriendsCount(prev => prev + 1)
+          } else {
+            // Other user accepted my request → bell notification + friends badge
+            setAcceptedNotifications(prev => [...prev, { friendshipId: data.friendshipId, user: friendUser, iAccepted: false }])
+            setUnreadFriendsCount(prev => prev + 1)
+          }
         }
       }
       loadAllConversations()
@@ -476,10 +485,12 @@ export default function DashboardPage() {
   }
 
   async function handleAccept(friendshipId: string) {
+    const req = friendRequests.find(r => r._id === friendshipId)
     const res = await apiRepository.acceptFriendRequest(friendshipId)
     if (res.success) {
       setFriendRequests((prev) => prev.filter((r) => r._id !== friendshipId))
       loadFriends()
+      addToast(`Agora você e ${req?.requester.name ?? "seu amigo"} são amigos! 🎉`, "success", 2000)
     }
   }
 
@@ -688,10 +699,10 @@ export default function DashboardPage() {
                       const isSelected = selectedConv?._id === conv._id
                       const contactStatus = other ? (userStatuses[other._id] ?? (other as any).status ?? "offline") as UserStatus : "offline"
                       return (
-                        <div key={conv._id} className="relative group">
+                        <div key={conv._id} className="flex items-center gap-0 mb-0.5">
                           <button
                             onClick={() => handleSelectConv(conv)}
-                            className={cn("w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors mb-0.5 cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
+                            className={cn("flex-1 min-w-0 text-left px-3 py-2.5 rounded-l-lg flex items-center gap-3 transition-colors cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
                           >
                             <div className="relative flex-none">
                               <UserAvatar avatar={other?.avatar} name={other?.name ?? ""} />
@@ -709,9 +720,10 @@ export default function DashboardPage() {
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setContextMenu({ convId: conv._id, x: e.clientX, y: e.clientY }) }}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 size-6 flex items-center justify-center rounded hover:bg-muted-foreground/20 transition-all cursor-pointer"
+                            className={cn("flex-none size-8 flex items-center justify-center rounded-r-lg transition-colors cursor-pointer", isSelected ? "bg-primary/10 hover:bg-primary/20" : "hover:bg-muted")}
+                            title="Opções"
                           >
-                            <MoreHorizontal className="size-3.5 text-muted-foreground" />
+                            <MoreHorizontal className="size-4 text-muted-foreground" />
                           </button>
                         </div>
                       )
@@ -750,10 +762,10 @@ export default function DashboardPage() {
                         : conv.lastMessage?.content ?? ""
                       const unread = unreadCounts[conv._id] ?? 0
                       return (
-                        <div key={conv._id} className="relative group">
+                        <div key={conv._id} className="flex items-center gap-0 mb-0.5">
                           <button
                             onClick={() => handleSelectConv(conv)}
-                            className={cn("w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors mb-0.5 cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
+                            className={cn("flex-1 min-w-0 text-left px-3 py-2.5 rounded-l-lg flex items-center gap-3 transition-colors cursor-pointer", isSelected ? "bg-primary/10" : "hover:bg-muted")}
                           >
                             <div className="relative flex-none">
                               <UserAvatar avatar={other?.avatar} name={other?.name ?? ""} />
@@ -778,9 +790,10 @@ export default function DashboardPage() {
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setContextMenu({ convId: conv._id, x: e.clientX, y: e.clientY }) }}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 size-6 flex items-center justify-center rounded hover:bg-muted-foreground/20 transition-all cursor-pointer"
+                            className={cn("flex-none size-8 flex items-center justify-center rounded-r-lg transition-colors cursor-pointer", isSelected ? "bg-primary/10 hover:bg-primary/20" : "hover:bg-muted")}
+                            title="Opções"
                           >
-                            <MoreHorizontal className="size-3.5 text-muted-foreground" />
+                            <MoreHorizontal className="size-4 text-muted-foreground" />
                           </button>
                         </div>
                       )

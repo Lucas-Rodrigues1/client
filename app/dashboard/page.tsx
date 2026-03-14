@@ -210,8 +210,6 @@ export default function DashboardPage() {
   const [contextMenu, setContextMenu] = useState<{ convId: string; x: number; y: number } | null>(null)
   const contextRef = useRef<HTMLDivElement>(null)
 
-  const manuallyUnarchivedRef = useRef<Set<string>>(new Set())
-
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -225,8 +223,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return
-    loadConversations()
-    loadArchivedConversations()
+    loadAllConversations()
     loadFriendRequests()
     apiRepository.getMyProfile().then((res) => {
       if (res.success && res.data) setMyAvatar(res.data.avatar)
@@ -257,7 +254,7 @@ export default function DashboardPage() {
         setUnreadCounts((prev) => ({ ...prev, [data.conversationId]: (prev[data.conversationId] ?? 0) + 1 }))
       }
       if (!conversationIdsRef.current.has(data.conversationId)) {
-        loadConversations()
+        loadAllConversations()
       } else {
         setConversations((prev) =>
           prev.map((c) =>
@@ -311,7 +308,7 @@ export default function DashboardPage() {
 
     const offFriendAcc = socketService.on<{ friendshipId: string }>("friend:accepted", () => {
       loadFriends()
-      loadConversations()
+      loadAllConversations()
     })
 
     const offUserStatus = socketService.on<{ userId: string; username: string; status: UserStatus }>("user:status", (data) => {
@@ -349,32 +346,37 @@ export default function DashboardPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  async function loadConversations() {
+  async function loadAllConversations() {
     setConvLoading(true)
-    const res = await apiRepository.listConversations()
-    setConvLoading(false)
-    if (res.success && res.data) {
-      setConversations(prev => {
-        const serverIds = new Set(res.data!.map(c => c._id))
-        const keepLocal = prev.filter(c => !serverIds.has(c._id) && manuallyUnarchivedRef.current.has(c._id))
-        return [...res.data!, ...keepLocal].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      })
-      setUnreadCounts(prev => {
-        const next = { ...prev }
-        res.data!.forEach(c => {
-          const serverCount = c.unreadCount ?? 0
-          next[c._id] = Math.max(prev[c._id] ?? 0, serverCount)
-        })
-        return next
-      })
-    }
-  }
-
-  async function loadArchivedConversations() {
     setArchivedLoading(true)
-    const res = await apiRepository.listArchivedConversations()
+    const [convRes, archRes] = await Promise.all([
+      apiRepository.listConversations(),
+      apiRepository.listArchivedConversations(),
+    ])
+    setConvLoading(false)
     setArchivedLoading(false)
-    if (res.success && res.data) setArchivedConvs(res.data.filter(c => !manuallyUnarchivedRef.current.has(c._id)))
+
+    const userId = user?.id ?? ""
+    const seen = new Set<string>()
+    const allConvs: ConversationItem[] = []
+    for (const c of [...(convRes.data || []), ...(archRes.data || [])]) {
+      if (!seen.has(c._id)) { seen.add(c._id); allConvs.push(c) }
+    }
+
+    const active = allConvs.filter(c => !c.archivedBy.includes(userId))
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    const archived = allConvs.filter(c => c.archivedBy.includes(userId))
+
+    setConversations(active)
+    setArchivedConvs(archived)
+    setUnreadCounts(prev => {
+      const next = { ...prev }
+      active.forEach(c => {
+        const serverCount = c.unreadCount ?? 0
+        next[c._id] = Math.max(prev[c._id] ?? 0, serverCount)
+      })
+      return next
+    })
   }
 
   async function loadFriendRequests() {
@@ -470,20 +472,21 @@ export default function DashboardPage() {
   async function handleArchive(convId: string) {
     setContextMenu(null)
     const conv = conversations.find((c) => c._id === convId)
-    manuallyUnarchivedRef.current.delete(convId)
     await apiRepository.archiveConversation(convId)
     setConversations((prev) => prev.filter((c) => c._id !== convId))
-    if (conv) setArchivedConvs((prev) => [conv, ...prev])
+    if (conv) setArchivedConvs((prev) => [{ ...conv, archivedBy: [...conv.archivedBy, user?.id ?? ""] }, ...prev])
     if (selectedConv?._id === convId) setSelectedConv(null)
   }
 
   async function handleUnarchive(convId: string) {
     setContextMenu(null)
     const conv = archivedConvs.find((c) => c._id === convId)
-    manuallyUnarchivedRef.current.add(convId)
     await apiRepository.unarchiveConversation(convId)
     setArchivedConvs((prev) => prev.filter((c) => c._id !== convId))
-    if (conv) setConversations((prev) => [conv, ...prev].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
+    if (conv) {
+      const updated = { ...conv, archivedBy: conv.archivedBy.filter(id => id !== (user?.id ?? "")) }
+      setConversations((prev) => [updated, ...prev].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
+    }
     if (selectedConv?._id === convId) setSelectedConv(null)
   }
 

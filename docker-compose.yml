@@ -1,8 +1,9 @@
 services:
   client:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://server-6kij.onrender.com}
     ports:
       - "3001:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://server-6kij.onrender.com}
     restart: unless-stopped

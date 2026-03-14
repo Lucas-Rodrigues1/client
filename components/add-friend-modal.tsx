@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { apiRepository, UserResult } from "@/lib/api"
 import { Search, UserPlus, X, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/lib/use-toast"
 
 interface AddFriendModalProps {
   onClose: () => void
@@ -20,6 +21,7 @@ export function AddFriendModal({ onClose, onRequestSent }: AddFriendModalProps) 
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const { addToast } = useToast()
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -46,6 +48,7 @@ export function AddFriendModal({ onClose, onRequestSent }: AddFriendModalProps) 
     const res = await apiRepository.sendFriendRequest(user._id)
     if (res.success) {
       setSentIds((prev) => new Set(prev).add(user._id))
+      addToast(`Solicitação enviada para ${user.name}!`, "success")
       onRequestSent?.()
     } else {
       setErrorMsg(res.message ?? "Erro ao enviar solicitação")

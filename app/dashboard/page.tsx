@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { removeToken, getUser } from "@/lib/auth"
-import { apiRepository, ConversationItem, MessageItem, FriendRequest, FriendItem } from "@/lib/api"
+import { apiRepository, ConversationItem, MessageItem, FriendRequest, FriendItem, UserResult } from "@/lib/api"
 import { socketService } from "@/lib/socket"
 import { AddFriendModal } from "@/components/add-friend-modal"
 import { AvatarUploadModal } from "@/components/avatar-upload-modal"
@@ -203,6 +203,9 @@ export default function DashboardPage() {
 
   const [addFriendOpen, setAddFriendOpen] = useState(false)
 
+  const [acceptedNotifications, setAcceptedNotifications] = useState<{ friendshipId: string; user: UserResult }[]>([])
+  const [unreadFriendsCount, setUnreadFriendsCount] = useState(0)
+
   const [archivedConvs, setArchivedConvs] = useState<ConversationItem[]>([])
   const [archivedLoading, setArchivedLoading] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
@@ -306,8 +309,18 @@ export default function DashboardPage() {
       loadFriendRequests()
     })
 
-    const offFriendAcc = socketService.on<{ friendshipId: string }>("friend:accepted", () => {
-      loadFriends()
+    const offFriendAcc = socketService.on<{ friendshipId: string }>("friend:accepted", async (data) => {
+      const res = await apiRepository.listFriends()
+      if (res.success && res.data) {
+        setFriends(res.data)
+        const accepted = res.data.find(f => f._id === data.friendshipId)
+        if (accepted) {
+          const myId = getUser()?.id ?? ""
+          const friendUser = accepted.requester._id === myId ? accepted.recipient : accepted.requester
+          setAcceptedNotifications(prev => [...prev, { friendshipId: data.friendshipId, user: friendUser }])
+          setUnreadFriendsCount(prev => prev + 1)
+        }
+      }
       loadAllConversations()
     })
 
@@ -345,6 +358,12 @@ export default function DashboardPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  useEffect(() => {
+    if (!requestsOpen && acceptedNotifications.length > 0) {
+      setAcceptedNotifications([])
+    }
+  }, [requestsOpen])
 
   async function loadAllConversations() {
     setConvLoading(true)
@@ -564,9 +583,9 @@ export default function DashboardPage() {
               className="relative size-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors cursor-pointer"
             >
               <Bell className="size-4" />
-              {friendRequests.length > 0 && (
+              {(friendRequests.length + acceptedNotifications.length) > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
-                  {friendRequests.length}
+                  {friendRequests.length + acceptedNotifications.length}
                 </span>
               )}
             </button>
@@ -574,26 +593,40 @@ export default function DashboardPage() {
             {requestsOpen && (
               <div className="absolute left-0 top-10 z-50 w-72 rounded-xl bg-card ring-1 ring-foreground/10 shadow-xl py-1 overflow-hidden">
                 <div className="px-3 py-2 border-b border-border">
-                  <p className="text-sm font-semibold">Solicitações de amizade</p>
+                  <p className="text-sm font-semibold">Notificações</p>
                 </div>
-                {friendRequests.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Nenhuma solicitação</p>
+                {friendRequests.length === 0 && acceptedNotifications.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Nenhuma notificação</p>
                 ) : (
-                  friendRequests.map((req) => (
-                    <div key={req._id} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50">
-                      <UserAvatar avatar={req.requester.avatar} name={req.requester.name} className="size-8 flex-none" textClassName="text-xs" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{req.requester.name}</p>
-                        <p className="text-xs text-muted-foreground">@{req.requester.username}</p>
+                  <>
+                    {acceptedNotifications.map((notif) => (
+                      <div key={notif.friendshipId} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50">
+                        <UserAvatar avatar={notif.user.avatar} name={notif.user.name} className="size-8 flex-none" textClassName="text-xs" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{notif.user.name}</p>
+                          <p className="text-xs text-green-500">aceitou sua solicitação</p>
+                        </div>
+                        <div className="size-7 rounded-full bg-green-500/10 flex items-center justify-center">
+                          <Check className="size-3.5 text-green-500" />
+                        </div>
                       </div>
-                      <button onClick={() => handleAccept(req._id)} className="size-7 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-colors">
-                        <Check className="size-3.5 text-primary" />
-                      </button>
-                      <button onClick={() => handleReject(req._id)} className="size-7 rounded-full bg-destructive/10 hover:bg-destructive/20 flex items-center justify-center cursor-pointer transition-colors">
-                        <X className="size-3.5 text-destructive" />
-                      </button>
-                    </div>
-                  ))
+                    ))}
+                    {friendRequests.map((req) => (
+                      <div key={req._id} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/50">
+                        <UserAvatar avatar={req.requester.avatar} name={req.requester.name} className="size-8 flex-none" textClassName="text-xs" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{req.requester.name}</p>
+                          <p className="text-xs text-muted-foreground">@{req.requester.username}</p>
+                        </div>
+                        <button onClick={() => handleAccept(req._id)} className="size-7 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-colors">
+                          <Check className="size-3.5 text-primary" />
+                        </button>
+                        <button onClick={() => handleReject(req._id)} className="size-7 rounded-full bg-destructive/10 hover:bg-destructive/20 flex items-center justify-center cursor-pointer transition-colors">
+                          <X className="size-3.5 text-destructive" />
+                        </button>
+                      </div>
+                    ))}
+                  </>
                 )}
               </div>
             )}
@@ -617,10 +650,15 @@ export default function DashboardPage() {
             <MessageSquare className="size-3.5" />Chats
           </button>
           <button
-            onClick={() => setSidebarTab("friends")}
-            className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors cursor-pointer", sidebarTab === "friends" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground")}
+            onClick={() => { setSidebarTab("friends"); setUnreadFriendsCount(0) }}
+            className={cn("relative flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors cursor-pointer", sidebarTab === "friends" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground")}
           >
             <Users className="size-3.5" />Amigos
+            {unreadFriendsCount > 0 && (
+              <span className="absolute top-1 right-2 min-w-[16px] h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
+                {unreadFriendsCount}
+              </span>
+            )}
           </button>
         </div>
 

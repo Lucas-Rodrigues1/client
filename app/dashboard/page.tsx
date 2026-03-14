@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -210,6 +210,8 @@ export default function DashboardPage() {
   const [contextMenu, setContextMenu] = useState<{ convId: string; x: number; y: number } | null>(null)
   const contextRef = useRef<HTMLDivElement>(null)
 
+  const manuallyUnarchivedRef = useRef<Set<string>>(new Set())
+
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -352,7 +354,11 @@ export default function DashboardPage() {
     const res = await apiRepository.listConversations()
     setConvLoading(false)
     if (res.success && res.data) {
-      setConversations(res.data)
+      setConversations(prev => {
+        const serverIds = new Set(res.data!.map(c => c._id))
+        const keepLocal = prev.filter(c => !serverIds.has(c._id) && manuallyUnarchivedRef.current.has(c._id))
+        return [...res.data!, ...keepLocal].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      })
       setUnreadCounts(prev => {
         const next = { ...prev }
         res.data!.forEach(c => {
@@ -368,7 +374,7 @@ export default function DashboardPage() {
     setArchivedLoading(true)
     const res = await apiRepository.listArchivedConversations()
     setArchivedLoading(false)
-    if (res.success && res.data) setArchivedConvs(res.data)
+    if (res.success && res.data) setArchivedConvs(res.data.filter(c => !manuallyUnarchivedRef.current.has(c._id)))
   }
 
   async function loadFriendRequests() {
@@ -464,6 +470,7 @@ export default function DashboardPage() {
   async function handleArchive(convId: string) {
     setContextMenu(null)
     const conv = conversations.find((c) => c._id === convId)
+    manuallyUnarchivedRef.current.delete(convId)
     await apiRepository.archiveConversation(convId)
     setConversations((prev) => prev.filter((c) => c._id !== convId))
     if (conv) setArchivedConvs((prev) => [conv, ...prev])
@@ -473,6 +480,7 @@ export default function DashboardPage() {
   async function handleUnarchive(convId: string) {
     setContextMenu(null)
     const conv = archivedConvs.find((c) => c._id === convId)
+    manuallyUnarchivedRef.current.add(convId)
     await apiRepository.unarchiveConversation(convId)
     setArchivedConvs((prev) => prev.filter((c) => c._id !== convId))
     if (conv) setConversations((prev) => [conv, ...prev].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))

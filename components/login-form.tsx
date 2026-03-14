@@ -75,7 +75,7 @@ export function LoginForm({
                 <Input
                   id="userName"
                   type="text"
-                  placeholder="Example: lucasRodrigues"
+                  placeholder="lucasRodrigues"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
                   required

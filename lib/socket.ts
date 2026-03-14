@@ -18,17 +18,11 @@ class SocketService {
       transports: ["websocket"],
     })
 
-    this.socket.on("connect", () => {
-      console.log("[Socket] Connected:", this.socket?.id)
-    })
+    this.socket.on("connect", () => {})
 
-    this.socket.on("disconnect", (reason) => {
-      console.log("[Socket] Disconnected:", reason)
-    })
+    this.socket.on("disconnect", () => {})
 
-    this.socket.on("connect_error", (err) => {
-      console.error("[Socket] Connection error:", err.message)
-    })
+    this.socket.on("connect_error", () => {})
 
     this.socket.on("trigger-event", ({ event, data }: { event: string; data: unknown }) => {
       const set = this.handlers.get(event)
@@ -43,7 +37,6 @@ class SocketService {
 
   emit<T>(event: string, data: T) {
     if (!this.socket?.connected) {
-      console.warn("[Socket] Not connected, cannot emit:", event)
       return
     }
     this.socket.emit("trigger-event", { event, data })
